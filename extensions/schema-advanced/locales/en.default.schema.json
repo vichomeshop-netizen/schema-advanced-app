@@ -1,0 +1,104 @@
+{
+  "name": "Schema Advanced ES/PT",
+  "settings": {
+    "language_mode": {
+      "label": "Language",
+      "info": "Choose the output language for the JSON-LD. “Auto” follows the visitor/store locale.",
+      "options": {
+        "auto": "Auto by locale",
+        "es": "Spanish (es-ES)",
+        "pt": "Portuguese (pt-PT)",
+        "en": "English"
+      }
+    },
+    "org_logo": {
+      "label": "Organization logo",
+      "info": "High-quality logo used as Organization image in rich results."
+    },
+    "org_phone": {
+      "label": "Support phone",
+      "info": "Public customer support phone number (E.164 or local format)."
+    },
+    "org_email": {
+      "label": "Support email",
+      "info": "Public customer support email (used for Organization and ContactPage)."
+    },
+    "org_sameas": {
+      "label": "Social profiles (one per line)",
+      "info": "Paste full URLs (e.g. https://www.instagram.com/yourbrand). One per line."
+    },
+    "address_street": {
+      "label": "Street and number",
+      "info": "Your business address street (optional but recommended)."
+    },
+    "address_city": {
+      "label": "City",
+      "info": "City or locality of your business address."
+    },
+    "address_postal": {
+      "label": "Postal code",
+      "info": "ZIP/Postal code of your business address."
+    },
+    "address_country": {
+      "label": "Country (ISO-2, e.g. ES or PT)",
+      "info": "Two-letter country code for your business address (e.g. ES, PT)."
+    },
+    "returns_days": {
+      "label": "Return window (days)",
+      "info": "Number of days for returns in your MerchantReturnPolicy."
+    },
+    "free_returns": {
+      "label": "Free returns",
+      "info": "If enabled, sets returnFees to FreeReturn; otherwise ReturnShippingFees."
+    },
+    "website_on_home_only": {
+      "label": "Emit WebSite only on home",
+      "info": "Enable to output WebSite JSON-LD only on the homepage."
+    },
+    "force_availability": {
+      "label": "Force availability (debug)",
+      "info": "Override stock availability for Product (e.g. InStock, OutOfStock). Leave blank to use real stock."
+    },
+    "shipping_countries": {
+      "label": "Shipping countries (ISO-2 list)",
+      "info": "Comma-separated ISO-2 country codes for shipping (e.g. ES,PT,FR)."
+    },
+    "shipping_days": {
+      "label": "Transit time (days, min-max)",
+      "info": "Range for transitTime (e.g. 2-3)."
+    },
+    "handling_days": {
+      "label": "Handling time (days, min-max)",
+      "info": "Range for handlingTime before shipping (e.g. 0-1)."
+    },
+    "include_shipping_rate": {
+      "label": "Include shipping rate amount",
+      "info": "If enabled, adds shippingRate MonetaryAmount to the Offer/ShippingDetails."
+    },
+    "shipping_rate_value": {
+      "label": "Shipping rate amount",
+      "info": "Numeric value for shippingRate (currency will use your cart currency)."
+    },
+    "emit_collection_auto": {
+      "label": "Emit Collection/FAQ on collection pages",
+      "info": "Outputs WebPage/CollectionPage and optional FAQPage if the metafield is present."
+    },
+    "faq_handle": {
+      "label": "FAQ metafield handle (namespace.key)",
+      "info": "Single handle such as custom.faq. Create a Collection metafield: either (1) Rich text with pairs of question (short line ending with '?') followed by answer paragraph; or (2) Metaobjects list with fields Question/Answer (or Pregunta/Respuesta). The app will auto-detect and emit a valid FAQPage if it finds ≥2 Q&A pairs."
+    },
+    "emit_howto_auto": {
+      "label": "Emit HowTo on articles",
+      "info": "Automatically builds a HowTo from H2 sections (if 2+ steps are found)."
+    },
+    "suppress_theme_jsonld": {
+      "label": "Remove theme JSON-LD (beta)",
+      "info": "Removes non-app JSON-LD scripts (Product, Organization, WebSite, BreadcrumbList, FAQPage, BlogPosting/Article, AboutPage, ContactPage) injected by the theme to avoid duplicates. Use with caution and test thoroughly."
+    }
+  }
+}
+
+
+
+
+

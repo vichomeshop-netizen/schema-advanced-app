@@ -1,0 +1,104 @@
+{
+  "name": "Schema Advanced ES/PT",
+  "settings": {
+    "language_mode": {
+      "label": "Idioma",
+      "info": "Elige el idioma de salida del JSON-LD. «Automático» sigue el idioma del visitante/tienda.",
+      "options": {
+        "auto": "Automático por localización",
+        "es": "Español (es-ES)",
+        "pt": "Portugués (pt-PT)",
+        "en": "Inglés"
+      }
+    },
+    "org_logo": {
+      "label": "Logo de la organización",
+      "info": "Logo de alta calidad usado como imagen de Organization en rich results."
+    },
+    "org_phone": {
+      "label": "Teléfono de atención",
+      "info": "Teléfono público de atención al cliente (formato E.164 o local)."
+    },
+    "org_email": {
+      "label": "Email de atención",
+      "info": "Email público de atención al cliente (se usa en Organization y ContactPage)."
+    },
+    "org_sameas": {
+      "label": "Perfiles sociales (uno por línea)",
+      "info": "Pega URLs completas (ej.: https://www.instagram.com/tu-marca). Uno por línea."
+    },
+    "address_street": {
+      "label": "Calle y número",
+      "info": "Calle/dirección de tu negocio (opcional pero recomendado)."
+    },
+    "address_city": {
+      "label": "Localidad",
+      "info": "Ciudad o localidad de tu dirección."
+    },
+    "address_postal": {
+      "label": "Código postal",
+      "info": "Código postal de tu dirección."
+    },
+    "address_country": {
+      "label": "País (ISO-2, ej.: ES o PT)",
+      "info": "Código de país de dos letras para tu dirección (ej.: ES, PT)."
+    },
+    "returns_days": {
+      "label": "Plazo de devolución (días)",
+      "info": "Número de días de tu política de devoluciones (MerchantReturnPolicy)."
+    },
+    "free_returns": {
+      "label": "Devoluciones gratuitas",
+      "info": "Si está activo, `returnFees` será FreeReturn; si no, ReturnShippingFees."
+    },
+    "website_on_home_only": {
+      "label": "Emitir WebSite solo en Home",
+      "info": "Actívalo para emitir WebSite JSON-LD solo en la página de inicio."
+    },
+    "force_availability": {
+      "label": "Forzar disponibilidad (debug)",
+      "info": "Sobrescribe la disponibilidad en Product (p. ej. InStock, OutOfStock). Deja en blanco para usar el stock real."
+    },
+    "shipping_countries": {
+      "label": "Países de envío (lista ISO-2)",
+      "info": "Códigos de país ISO-2 separados por comas (ej.: ES,PT,FR)."
+    },
+    "shipping_days": {
+      "label": "Tránsito (días, min-máx)",
+      "info": "Rango para `transitTime` (ej.: 2-3)."
+    },
+    "handling_days": {
+      "label": "Manipulación (días, min-máx)",
+      "info": "Rango para `handlingTime` antes del envío (ej.: 0-1)."
+    },
+    "include_shipping_rate": {
+      "label": "Incluir coste de envío",
+      "info": "Si está activo, añade `shippingRate` (MonetaryAmount) al Offer/ShippingDetails."
+    },
+    "shipping_rate_value": {
+      "label": "Importe de envío",
+      "info": "Valor numérico del `shippingRate` (la moneda usa la del carrito)."
+    },
+    "emit_collection_auto": {
+      "label": "Emitir Collection/FAQ en colecciones",
+      "info": "Emite WebPage/CollectionPage y FAQPage si existe el metafield configurado."
+    },
+    "faq_handle": {
+      "label": "Handle del metafield FAQ (namespace.key)",
+      "info": "Un único handle como `custom.faq`. Crea un *metafield de Colección* para FAQs de una de estas formas: (1) **Texto enriquecido** con pares de pregunta (línea corta que termina en '?') y a continuación el párrafo de respuesta; o (2) **Metaobjetos** (lista) con campos **Pregunta/Respuesta** (o Question/Answer). La app detecta el formato y emite **FAQPage** válido si encuentra ≥2 pares Q&A."
+    },
+    "emit_howto_auto": {
+      "label": "Emitir HowTo en artículos",
+      "info": "Genera automáticamente un HowTo a partir de los H2 (si hay 2+ pasos)."
+    },
+    "suppress_theme_jsonld": {
+      "label": "Eliminar JSON-LD del tema (beta)",
+      "info": "Elimina scripts JSON-LD ajenos a la app (Product, Organization, WebSite, BreadcrumbList, FAQPage, BlogPosting/Article, AboutPage, ContactPage) inyectados por el tema para evitar duplicados. Úsalo con cautela y prueba bien."
+    }
+  }
+}
+
+
+
+
+

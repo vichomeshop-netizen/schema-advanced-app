@@ -1,0 +1,12 @@
+{%- comment -%}
+Helpers comunes: idioma normalizado
+{%- endcomment -%}
+{%- liquid
+  assign iso = localization.language.iso_code | default: 'es-ES'
+  assign iso_norm = iso
+  if iso_norm == 'es'
+    assign iso_norm = 'es-ES'
+  elsif iso_norm == 'pt'
+    assign iso_norm = 'pt-PT'
+  endif
+-%}

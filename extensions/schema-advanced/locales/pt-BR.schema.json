@@ -1,0 +1,102 @@
+{
+  "name": "Schema Advanced ES/PT",
+  "settings": {
+    "language_mode": {
+      "label": "Idioma",
+      "info": "Escolha o idioma de saída do JSON-LD. “Automático” segue o idioma do visitante/loja.",
+      "options": {
+        "auto": "Automático por localização",
+        "es": "Espanhol (es-ES)",
+        "pt": "Português (pt-PT)",
+        "en": "Inglês"
+      }
+    },
+    "org_logo": {
+      "label": "Logótipo da organização",
+      "info": "Logótipo de alta qualidade usado como imagem da Organization nos rich results."
+    },
+    "org_phone": {
+      "label": "Telefone de apoio",
+      "info": "Telefone público de apoio ao cliente (formato E.164 ou local)."
+    },
+    "org_email": {
+      "label": "Email de apoio",
+      "info": "Email público de apoio ao cliente (usado em Organization e ContactPage)."
+    },
+    "org_sameas": {
+      "label": "Perfis sociais (um por linha)",
+      "info": "Cole URLs completas (ex.: https://www.instagram.com/sua-marca). Um por linha."
+    },
+    "address_street": {
+      "label": "Rua e número",
+      "info": "Rua/endereço da sua empresa (opcional mas recomendado)."
+    },
+    "address_city": {
+      "label": "Localidade",
+      "info": "Cidade ou localidade do endereço."
+    },
+    "address_postal": {
+      "label": "Código postal",
+      "info": "Código postal do endereço."
+    },
+    "address_country": {
+      "label": "País (ISO-2, ex.: ES ou PT)",
+      "info": "Código de país de duas letras (ex.: ES, PT)."
+    },
+    "returns_days": {
+      "label": "Prazo de devolução (dias)",
+      "info": "Número de dias na sua MerchantReturnPolicy."
+    },
+    "free_returns": {
+      "label": "Devoluções gratuitas",
+      "info": "Se ativo, `returnFees` será FreeReturn; caso contrário, ReturnShippingFees."
+    },
+    "website_on_home_only": {
+      "label": "Emitir WebSite apenas na home",
+      "info": "Ative para emitir WebSite JSON-LD apenas na página inicial."
+    },
+    "force_availability": {
+      "label": "Forçar disponibilidade (debug)",
+      "info": "Substitui a disponibilidade do Product (ex.: InStock, OutOfStock). Deixe vazio para usar o stock real."
+    },
+    "shipping_countries": {
+      "label": "Países de envio (lista ISO-2)",
+      "info": "Códigos ISO-2 separados por vírgula (ex.: ES,PT,FR)."
+    },
+    "shipping_days": {
+      "label": "Trânsito (dias, min-máx)",
+      "info": "Intervalo para `transitTime` (ex.: 2-3)."
+    },
+    "handling_days": {
+      "label": "Manuseio (dias, min-máx)",
+      "info": "Intervalo para `handlingTime` antes do envio (ex.: 0-1)."
+    },
+    "include_shipping_rate": {
+      "label": "Incluir custo de envio",
+      "info": "Se ativo, adiciona `shippingRate` (MonetaryAmount) ao Offer/ShippingDetails."
+    },
+    "shipping_rate_value": {
+      "label": "Valor do envio",
+      "info": "Valor numérico para `shippingRate` (a moeda usa a do carrinho)."
+    },
+    "emit_collection_auto": {
+      "label": "Emitir Collection/FAQ nas coleções",
+      "info": "Emite WebPage/CollectionPage e FAQPage se o metafield estiver preenchido."
+    },
+    "faq_handle": {
+      "label": "Handle do metafield FAQ (namespace.key)",
+      "info": "Um único handle como `custom.faq`. Crie um *metafield de Coleção* para FAQs de uma destas formas: (1) **Rich text** com pares de pergunta (linha curta terminando em '?') e, a seguir, o parágrafo de resposta; ou (2) **Metaobjects** (lista) com campos **Pergunta/Resposta** (ou Question/Answer). A app deteta o formato e emite **FAQPage** válido se encontrar ≥2 pares."
+    },
+    "emit_howto_auto": {
+      "label": "Emitir HowTo em artigos",
+      "info": "Gera automaticamente um HowTo a partir de H2 (se houver 2+ passos)."
+    },
+    "suppress_theme_jsonld": {
+      "label": "Remover JSON-LD do tema (beta)",
+      "info": "Remove scripts JSON-LD fora da app (Product, Organization, WebSite, BreadcrumbList, FAQPage, BlogPosting/Article, AboutPage, ContactPage) injetados pelo tema para evitar duplicados. Use com cuidado e teste bem."
+    }
+  }
+}
+
+
+

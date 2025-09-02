@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "a9fbe1c16d3db5f58aa444bff1eb98e9"
+name = "schema-advanced-app"
+application_url = "https://uk-john-coaches-jerusalem.trycloudflare.com"
+embedded = true
+handle = "schema-advanced-app"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = ["https://uk-john-coaches-jerusalem.trycloudflare.com/auth/callback", "https://uk-john-coaches-jerusalem.trycloudflare.com/auth/shopify/callback", "https://uk-john-coaches-jerusalem.trycloudflare.com/api/auth/callback"]
+
+[pos]
+embedded = false
