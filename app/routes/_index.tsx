@@ -1,15 +1,7 @@
-import type { MetaFunction } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
 
-export const meta: MetaFunction = () => ([
-  { title: "Schema Advanced App" },
-  { name: "description", content: "OK" },
-]);
+// redirige la raíz a /app (o a /auth si prefieres iniciar OAuth)
+export const loader = async () => redirect("/app");
 
-export default function Index() {
-  return (
-    <div style={{padding: 24}}>
-      <h1>It works ✅</h1>
-      <p>Remix SSR on Vercel is running.</p>
-    </div>
-  );
-}
+// componente vacío porque nunca se renderiza (redirige en el loader)
+export default function Index() { return null; }
