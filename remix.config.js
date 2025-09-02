@@ -13,7 +13,7 @@ module.exports = {
   ignoredRouteFiles: ["**/.*"],
   appDirectory: "app",
   serverBuildTarget: "vercel",   // 👈 NECESARIO para Vercel
-  serverModuleFormat: "cjs",     // 👈 deja "cjs" si tu package.json NO tiene "type":"module"
+  serverModuleFormat: "esm",     // 👈 deja "cjs" si tu package.json NO tiene "type":"module"
   dev: { port: process.env.HMR_SERVER_PORT || 8002 },
   future: {},
 };
