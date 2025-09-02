@@ -1,36 +1,39 @@
 // app/routes/app.products.jsx
-import { Page, Card, IndexTable, Text } from "@shopify/polaris";
-
 export default function Products() {
-  const rows = []; // Conecta después a Admin API si quieres datos reales
+  // Placeholder sencillo sin Polaris
+  const rows = []; // Conecta API si quieres más adelante
 
   return (
-    <Page title="Productos">
-      <Card>
-        {rows.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center" }}>
-            <Text as="p" variant="bodyMd">No hay productos cargados en el panel.</Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              (El valor principal está en el App embed del tema; esta vista es informativa.)
-            </Text>
-          </div>
-        ) : (
-          <IndexTable
-            resourceName={{ singular: "producto", plural: "productos" }}
-            itemCount={rows.length}
-            headings={[{ title: "ID" }, { title: "Título" }, { title: "Estado" }]}
-            selectable={false}
-          >
-            {rows.map((r, index) => (
-              <IndexTable.Row id={r.id} key={r.id} position={index}>
-                <IndexTable.Cell><Text as="span" variant="bodySm">{r.id}</Text></IndexTable.Cell>
-                <IndexTable.Cell>{r.title}</IndexTable.Cell>
-                <IndexTable.Cell>{r.status}</IndexTable.Cell>
-              </IndexTable.Row>
+    <div>
+      <h1 style={{ marginBottom: 10 }}>Productos</h1>
+
+      {rows.length === 0 ? (
+        <div style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <p>No hay productos que mostrar en el panel.</p>
+          <p style={{ color: "#6b7280" }}>
+            El valor principal vive en el App embed del tema; esta vista es informativa.
+          </p>
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>ID</th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Título</th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td style={{ padding: 8, borderBottom: "1px solid #f3f4f6" }}>{r.id}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid #f3f4f6" }}>{r.title}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid #f3f4f6" }}>{r.status}</td>
+              </tr>
             ))}
-          </IndexTable>
-        )}
-      </Card>
-    </Page>
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

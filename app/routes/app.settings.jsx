@@ -1,49 +1,71 @@
 // app/routes/app.settings.jsx
 import { useEffect, useState } from "react";
-import { Page, Card, FormLayout, TextField, Checkbox, Button, Banner } from "@shopify/polaris";
 
 export default function Settings() {
-  const [embedHint, setEmbedHint] = useState(true);
-  const [docsUrl, setDocsUrl] = useState("https://vichome.es/pages/ayuda-o-docs");
+  const [enableHint, setEnableHint] = useState(true);
+  const [docsUrl, setDocsUrl] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const s = window.localStorage.getItem("schema-advanced-settings");
-    if (s) {
-      try {
-        const parsed = JSON.parse(s);
-        if (typeof parsed.embedHint === "boolean") setEmbedHint(parsed.embedHint);
-        if (parsed.docsUrl) setDocsUrl(parsed.docsUrl);
-      } catch {}
-    }
+    try {
+      const s = window.localStorage.getItem("schema-advanced-settings");
+      if (s) {
+        const j = JSON.parse(s);
+        if (typeof j.enableHint === "boolean") setEnableHint(j.enableHint);
+        if (typeof j.docsUrl === "string") setDocsUrl(j.docsUrl);
+      }
+    } catch {}
   }, []);
 
-  const onSave = () => {
-    if (typeof window !== "undefined") {
+  function save() {
+    try {
       window.localStorage.setItem(
         "schema-advanced-settings",
-        JSON.stringify({ embedHint, docsUrl })
+        JSON.stringify({ enableHint, docsUrl })
       );
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-  };
+      setTimeout(() => setSaved(false), 1800);
+    } catch {}
+  }
 
   return (
-    <Page title="Ajustes">
-      <Card sectioned>
-        {saved && <Banner status="success" title="Ajustes guardados" />}
-        <FormLayout>
-          <Checkbox
-            label="Mostrar aviso para activar App embed"
-            checked={embedHint}
-            onChange={setEmbedHint}
+    <div>
+      <h1 style={{ marginBottom: 10 }}>Ajustes</h1>
+
+      {saved && (
+        <div style={{ marginBottom: 12, padding: 10, border: "1px solid #bbf7d0", background: "#ecfdf5", borderRadius: 8 }}>
+          Ajustes guardados.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={enableHint}
+            onChange={(e) => setEnableHint(e.target.checked)}
           />
-          <TextField label="URL de documentación" value={docsUrl} onChange={setDocsUrl} />
-          <Button primary onClick={onSave}>Guardar</Button>
-        </FormLayout>
-      </Card>
-    </Page>
+          Mostrar aviso para activar App embed
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span>URL de documentación</span>
+          <input
+            type="url"
+            value={docsUrl}
+            onChange={(e) => setDocsUrl(e.target.value)}
+            placeholder="https://tusitio.com/docs"
+            style={{ padding: 8, border: "1px solid #e5e7eb", borderRadius: 8 }}
+          />
+        </label>
+
+        <button
+          onClick={save}
+          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", cursor: "pointer", width: 120 }}
+        >
+          Guardar
+        </button>
+      </div>
+    </div>
   );
 }
