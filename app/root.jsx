@@ -1,15 +1,14 @@
-// app/root.tsx
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
-import {
-  Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration,
-} from "@remix-run/react";
+// app/root.jsx
+import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration } from "@remix-run/react";
+// Importa estilos globales que necesites (opcional)
 import "@shopify/polaris/build/esm/styles.css";
 
-export const links: LinksFunction = () => [
+export const links = () => [
   { rel: "preconnect", href: "https://cdn.shopify.com" },
 ];
 
-export async function loader(_args: LoaderFunctionArgs) {
+export async function loader() {
+  // devuelve lo que necesites, sin tipos TS
   return { theme: "light" };
 }
 
