@@ -12,31 +12,20 @@ const STRINGS = {
       "Go to Online Store → Themes → Customize",
       "Open the App embeds tab",
       "Enable Schema Advanced and save",
-      'Visit your storefront: you should see <code>data-sae="1"</code> in the JSON-LD',
+      'Visit your storefront: you should see <code>data-sae=\"1\"</code> in the JSON-LD',
       "Check the status below turns to ✅ Active",
     ],
     statusTitle: "Quick status",
     statusChecking: "⏳ Checking…",
-    statusOk: '✅ Active: detected <code>data-sae="1"</code>',
+    statusOk: "✅ Schema Advanced active",
     statusWarnNoSignal: "⚠️ No confirmation received from the storefront",
-    statusWarnNoDetect: '⚠️ No <code>data-sae="1"</code> detected on the storefront',
     whatTitle: "What schemas are added?",
     whatList: [
-      "<strong>Organization</strong>: name, logo, address, contact, social",
-      "<strong>WebSite</strong>: internal site search",
-      "<strong>BreadcrumbList</strong>: navigation path (Home → Collection → Product)",
-      "<strong>CollectionPage</strong>: collection/category data",
-      "<strong>FAQPage</strong>: FAQs from metafields/metaobjects",
-      "<strong>Product</strong>: GTIN, MPN, SKU, price, stock, shipping, returns",
-      "<strong>AggregateOffer</strong>: variant prices (min/max)",
-      "<strong>AggregateRating</strong>: ratings & reviews (if available)",
-      "<strong>BlogPosting</strong>: blog articles",
-      "<strong>HowTo</strong>: auto from H2 sections",
-      "<strong>ContactPage</strong> and <strong>AboutPage</strong>",
+      "<strong>Organization</strong>, <strong>WebSite</strong>, <strong>BreadcrumbList</strong>, <strong>CollectionPage</strong>, <strong>FAQPage</strong>, <strong>Product</strong>, <strong>AggregateOffer</strong>, <strong>AggregateRating</strong>, <strong>BlogPosting</strong>, <strong>HowTo</strong>, <strong>ContactPage</strong>, <strong>AboutPage</strong>",
     ],
     extrasTitle: "Extras",
     extrasList: [
-      "<strong>Theme JSON-LD suppressor</strong>: removes duplicate/conflicting theme JSON-LD",
+      "<strong>Theme JSON-LD suppressor</strong>: removes duplicates",
       "<strong>Auto language</strong>: ES/PT aware for inLanguage",
       "<strong>Return policy</strong>: based on your settings",
     ],
@@ -54,31 +43,20 @@ const STRINGS = {
       "Ve a Online Store → Themes → Customize",
       "Abre la pestaña App embeds",
       "Activa Schema Advanced y guarda",
-      'Visita tu storefront: deberías ver <code>data-sae="1"</code> en el JSON-LD',
+      'Visita tu storefront: deberías ver <code>data-sae=\"1\"</code> en el JSON-LD',
       "Comprueba que el estado aquí abajo aparece como ✅ Activo",
     ],
     statusTitle: "Estado rápido",
     statusChecking: "⏳ Comprobando…",
-    statusOk: '✅ Activo: detectado <code>data-sae="1"</code>',
+    statusOk: "✅ Schema Advanced activo",
     statusWarnNoSignal: "⚠️ No se recibió confirmación del storefront",
-    statusWarnNoDetect: '⚠️ No se detectó <code>data-sae="1"</code> en el storefront',
     whatTitle: "¿Qué schemas añade?",
     whatList: [
-      "<strong>Organization</strong>: nombre, logo, dirección, contacto, redes",
-      "<strong>WebSite</strong>: buscador interno",
-      "<strong>BreadcrumbList</strong>: migas (Inicio → Colección → Producto)",
-      "<strong>CollectionPage</strong>: datos de colecciones/categorías",
-      "<strong>FAQPage</strong>: FAQs desde metafields/metaobjetos",
-      "<strong>Product</strong>: GTIN, MPN, SKU, precio, stock, envío, devoluciones",
-      "<strong>AggregateOffer</strong>: variantes con precios min/máx",
-      "<strong>AggregateRating</strong>: valoraciones y reseñas (si existen)",
-      "<strong>BlogPosting</strong>: artículos del blog",
-      "<strong>HowTo</strong>: automático a partir de H2",
-      "<strong>ContactPage</strong> y <strong>AboutPage</strong>",
+      "<strong>Organization</strong>, <strong>WebSite</strong>, <strong>BreadcrumbList</strong>, <strong>CollectionPage</strong>, <strong>FAQPage</strong>, <strong>Product</strong>, <strong>AggregateOffer</strong>, <strong>AggregateRating</strong>, <strong>BlogPosting</strong>, <strong>HowTo</strong>, <strong>ContactPage</strong>, <strong>AboutPage</strong>",
     ],
     extrasTitle: "Extras",
     extrasList: [
-      "<strong>Supresor de JSON-LD del tema</strong>: elimina duplicados/conflictos",
+      "<strong>Supresor de JSON-LD del tema</strong>: elimina duplicados",
       "<strong>Idioma automático</strong>: reconoce ES/PT para inLanguage",
       "<strong>Política de devoluciones</strong>: según tus ajustes",
     ],
@@ -96,31 +74,20 @@ const STRINGS = {
       "Vá para Online Store → Themes → Customize",
       "Abra a aba App embeds",
       "Ative Schema Advanced e salve",
-      'Visite o storefront: você deve ver <code>data-sae="1"</code> no JSON-LD',
+      'Visite o storefront: você deve ver <code>data-sae=\"1\"</code> no JSON-LD',
       "Verifique aqui abaixo que o estado aparece como ✅ Ativo",
     ],
     statusTitle: "Estado rápido",
     statusChecking: "⏳ Verificando…",
-    statusOk: '✅ Ativo: detectado <code>data-sae="1"</code>',
+    statusOk: "✅ Schema Advanced ativo",
     statusWarnNoSignal: "⚠️ Nenhuma confirmação recebida do storefront",
-    statusWarnNoDetect: '⚠️ <code>data-sae="1"</code> não detectado no storefront',
     whatTitle: "Quais schemas são adicionados?",
     whatList: [
-      "<strong>Organization</strong>: nome, logotipo, endereço, contato, redes",
-      "<strong>WebSite</strong>: busca interna do site",
-      "<strong>BreadcrumbList</strong>: trilha (Início → Coleção → Produto)",
-      "<strong>CollectionPage</strong>: dados de coleções/categorias",
-      "<strong>FAQPage</strong>: FAQs de metafields/metaobjects",
-      "<strong>Product</strong>: GTIN, MPN, SKU, preço, estoque, envio, devoluções",
-      "<strong>AggregateOffer</strong>: variações com preços mín/máx",
-      "<strong>AggregateRating</strong>: avaliações e reviews (se houver)",
-      "<strong>BlogPosting</strong>: artigos do blog",
-      "<strong>HowTo</strong>: automático a partir de H2",
-      "<strong>ContactPage</strong> e <strong>AboutPage</strong>",
+      "<strong>Organization</strong>, <strong>WebSite</strong>, <strong>BreadcrumbList</strong>, <strong>CollectionPage</strong>, <strong>FAQPage</strong>, <strong>Product</strong>, <strong>AggregateOffer</strong>, <strong>AggregateRating</strong>, <strong>BlogPosting</strong>, <strong>HowTo</strong>, <strong>ContactPage</strong>, <strong>AboutPage</strong>",
     ],
     extrasTitle: "Extras",
     extrasList: [
-      "<strong>Supressor de JSON-LD do tema</strong>: remove duplicidades/conflitos",
+      "<strong>Supressor de JSON-LD do tema</strong>: remove duplicidades",
       "<strong>Idioma automático</strong>: reconhece ES/PT para inLanguage",
       "<strong>Política de devoluções</strong>: conforme suas configurações",
     ],
@@ -143,24 +110,13 @@ export default function Dashboard() {
   const t = useI18n();
   const [state, setState] = useState(t.statusChecking);
 
+  // Nuevo useEffect con ping al backend
   useEffect(() => {
-    function handler(e) {
-      if (e.detail.active) {
-        setState(t.statusOk);
-      } else {
-        setState(t.statusWarnNoDetect);
-      }
-    }
-    window.addEventListener("sae:detected", handler);
-    const timer = setTimeout(() => {
-      if (state === t.statusChecking) setState(t.statusWarnNoSignal);
-    }, 5000);
-    return () => {
-      window.removeEventListener("sae:detected", handler);
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetch("/api/embed-ping")
+      .then(r => r.json())
+      .then(() => setState(t.statusOk))
+      .catch(() => setState(t.statusWarnNoSignal));
+  }, [t.statusOk, t.statusWarnNoSignal]);
 
   const openThemeEditor = () => {
     window.top.location.href = "/admin/themes/current/editor?context=apps";
