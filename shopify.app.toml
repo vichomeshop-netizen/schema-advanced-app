@@ -2,7 +2,7 @@
 
 client_id = "a9fbe1c16d3db5f58aa444bff1eb98e9"
 name = "schema-advanced-app"
-application_url = "https://uk-john-coaches-jerusalem.trycloudflare.com"
+application_url = "https://laundry-angel-hospitals-demands.trycloudflare.com"
 embedded = true
 handle = "schema-advanced-app"
 
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://uk-john-coaches-jerusalem.trycloudflare.com/auth/callback", "https://uk-john-coaches-jerusalem.trycloudflare.com/auth/shopify/callback", "https://uk-john-coaches-jerusalem.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://laundry-angel-hospitals-demands.trycloudflare.com/auth/callback", "https://laundry-angel-hospitals-demands.trycloudflare.com/auth/shopify/callback", "https://laundry-angel-hospitals-demands.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

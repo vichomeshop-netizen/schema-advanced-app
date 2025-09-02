@@ -1,7 +1,13 @@
-import { redirect } from "@remix-run/node";
-
-// redirige la raíz a /app (o a /auth si prefieres iniciar OAuth)
-export const loader = async () => redirect("/app");
-
-// componente vacío porque nunca se renderiza (redirige en el loader)
-export default function Index() { return null; }
+export default function Index() {
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Panel Schema Advanced</h1>
+      <ul>
+        <li><a href="/products">Productos</a></li>
+        <li><a href="/collections">Colecciones</a></li>
+        <li><a href="/schema">SEO / Schema</a></li>
+        <li><a href="/settings">Ajustes</a></li>
+      </ul>
+    </div>
+  );
+}
