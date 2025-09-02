@@ -1,33 +1,26 @@
 // app/routes/app._index.jsx
-import { useSearchParams } from "@remix-run/react";
+import { useCallback } from "react";
 
-export default function AppHome() {
-  const [sp] = useSearchParams();
-  const shop = sp.get("shop") || "";
-
-  const openThemeEditor = () => {
-    // Abre el editor de temas en App embeds dentro del Admin
-    window.top.location.href = `/admin/themes/current/editor?context=apps`;
-  };
+export default function Dashboard() {
+  const openThemeEditor = useCallback(() => {
+    // abrirá el editor dentro del admin (embedded)
+    window.top.location.href = "/admin/themes/current/editor?context=apps";
+  }, []);
 
   return (
-    <div style={{padding: 24, fontFamily: "system-ui, sans-serif"}}>
-      <h1>Schema Advanced</h1>
-      <p>Activa el <strong>App embed</strong> en tu tema para empezar.</p>
-      <button onClick={openThemeEditor} style={{padding: '8px 12px'}}>Abrir editor de temas</button>
+    <div>
+      <h1 style={{ marginBottom: 10 }}>Schema Advanced — Panel</h1>
+      <p style={{ marginBottom: 16 }}>
+        Activa el <strong>App embed</strong> en tu tema para empezar. Luego visita el storefront para verificar los JSON-LD.
+      </p>
+      <button onClick={openThemeEditor} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", cursor: "pointer" }}>
+        Abrir editor de temas
+      </button>
 
-      <hr style={{margin: '24px 0'}} />
-      <h3>Estado</h3>
-      <p id="state">Comprobando si el embed se ha cargado recientemente…</p>
-
-      <script dangerouslySetInnerHTML={{__html: `
-        // Muestra "Activo" si hemos recibido un ping del storefront en las últimas 24h
-        fetch('/api/embed-status?shop=${encodeURIComponent(shop)}').then(r=>r.json()).then(d=>{
-          const el = document.getElementById('state');
-          if (d.active) { el.textContent = '✔️ Embed activo recientemente.'; }
-          else { el.textContent = '⚠️ Aún no vemos el embed activo. Actívalo y visita tu tienda.'; }
-        }).catch(()=>{});
-      `}} />
+      <div style={{ marginTop: 24, padding: 12, border: "1px solid #e5e7eb", borderRadius: 8, background: "#fcfcff" }}>
+        <strong>Estado rápido</strong>
+        <p id="state" style={{ marginTop: 8 }}>Abre tu tienda pública y verifica que ves <code>data-sae="1"</code> en los JSON-LD.</p>
+      </div>
     </div>
   );
 }

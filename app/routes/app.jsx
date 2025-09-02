@@ -1,48 +1,41 @@
 // app/routes/app.jsx
-import { Outlet, useLocation } from "@remix-run/react";
-import { AppProvider, Frame, Navigation, TopBar } from "@shopify/polaris";
-import { Provider as AppBridgeProvider } from "@shopify/app-bridge-react";
-
-/** Carga host/shop del query para que App Bridge funcione embebido */
-export async function loader({ request }) {
-  const url = new URL(request.url);
-  return {
-    host: url.searchParams.get("host") || "",
-    shop: url.searchParams.get("shop") || "",
-    apiKey: process.env.SHOPIFY_API_KEY || "",
-  };
-}
+import { Outlet, Link, useLocation } from "@remix-run/react";
 
 export default function AppLayout() {
   const location = useLocation();
 
-  const items = [
-    { label: "Panel", url: "/app" },
-    { label: "Productos", url: "/app/products" },
-    { label: "Ajustes", url: "/app/settings" },
-  ];
-
-  // Nota: Polaris Navigation usa <a href="..."> — Remix seguirá manejando naveg.
-  return (
-    <AppBridgeProvider
-      config={{
-        apiKey: (typeof window !== "undefined" && window.__SHOPIFY_API_KEY__) || "", // de fallback, App Bridge tomará del loader en server-side si lo inyectas
-        host: new URLSearchParams(location.search).get("host") || "",
-        forceRedirect: true,
+  const NavLink = ({ to, children }) => (
+    <Link
+      to={to}
+      prefetch="intent"
+      style={{
+        display: "block",
+        padding: "10px 12px",
+        borderRadius: 8,
+        textDecoration: "none",
+        background: location.pathname === to ? "#eef2ff" : "transparent",
+        color: "#111",
+        marginBottom: 6,
+        border: "1px solid #e5e7eb",
       }}
     >
-      <AppProvider i18n={{}}>
-        <Frame
-          topBar={<TopBar />}
-          navigation={
-            <Navigation location={location.pathname}>
-              <Navigation.Section title="Schema Advanced" items={items} />
-            </Navigation>
-          }
-        >
-          <Outlet />
-        </Frame>
-      </AppProvider>
-    </AppBridgeProvider>
+      {children}
+    </Link>
+  );
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
+      <aside style={{ padding: 16, borderRight: "1px solid #e5e7eb", background: "#fafafa" }}>
+        <h2 style={{ margin: "6px 0 12px 0", fontSize: 16 }}>Schema Advanced</h2>
+        <nav>
+          <NavLink to="/app">Panel</NavLink>
+          <NavLink to="/app/products">Productos</NavLink>
+          <NavLink to="/app/settings">Ajustes</NavLink>
+        </nav>
+      </aside>
+      <main style={{ padding: 20 }}>
+        <Outlet />
+      </main>
+    </div>
   );
 }
