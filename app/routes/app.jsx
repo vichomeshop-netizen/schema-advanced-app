@@ -1,39 +1,48 @@
-import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
-import { boundary } from "@shopify/shopify-app-remix/server";
-import { AppProvider } from "@shopify/shopify-app-remix/react";
-import { NavMenu } from "@shopify/app-bridge-react";
-import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import { authenticate } from "../shopify.server";
+// app/routes/app.jsx
+import { Outlet, useLocation } from "@remix-run/react";
+import { AppProvider, Frame, Navigation, TopBar } from "@shopify/polaris";
+import { Provider as AppBridgeProvider } from "@shopify/app-bridge-react";
 
-export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+/** Carga host/shop del query para que App Bridge funcione embebido */
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  return {
+    host: url.searchParams.get("host") || "",
+    shop: url.searchParams.get("shop") || "",
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+  };
+}
 
-export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+export default function AppLayout() {
+  const location = useLocation();
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
-};
+  const items = [
+    { label: "Panel", url: "/app" },
+    { label: "Productos", url: "/app/products" },
+    { label: "Ajustes", url: "/app/settings" },
+  ];
 
-export default function App() {
-  const { apiKey } = useLoaderData();
-
+  // Nota: Polaris Navigation usa <a href="..."> — Remix seguirá manejando naveg.
   return (
-    <AppProvider isEmbeddedApp apiKey={apiKey}>
-      <NavMenu>
-        <Link to="/app" rel="home">
-          Home
-        </Link>
-        <Link to="/app/additional">Additional page</Link>
-      </NavMenu>
-      <Outlet />
-    </AppProvider>
+    <AppBridgeProvider
+      config={{
+        apiKey: (typeof window !== "undefined" && window.__SHOPIFY_API_KEY__) || "", // de fallback, App Bridge tomará del loader en server-side si lo inyectas
+        host: new URLSearchParams(location.search).get("host") || "",
+        forceRedirect: true,
+      }}
+    >
+      <AppProvider i18n={{}}>
+        <Frame
+          topBar={<TopBar />}
+          navigation={
+            <Navigation location={location.pathname}>
+              <Navigation.Section title="Schema Advanced" items={items} />
+            </Navigation>
+          }
+        >
+          <Outlet />
+        </Frame>
+      </AppProvider>
+    </AppBridgeProvider>
   );
 }
-
-// Shopify needs Remix to catch some thrown responses, so that their headers are included in the response.
-export function ErrorBoundary() {
-  return boundary.error(useRouteError());
-}
-
-export const headers = (headersArgs) => {
-  return boundary.headers(headersArgs);
-};
