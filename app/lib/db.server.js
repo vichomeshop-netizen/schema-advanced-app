@@ -1,9 +1,16 @@
 // app/lib/db.server.js
 // ⚠️ Implementación en memoria para desarrollo / pruebas.
 // En Serverless (Vercel) puede resetearse en despliegues/cold starts.
-// Para producción migra a Prisma (te paso esa versión cuando quieras).
+// Para producción migra a Prisma.
 
-const stores = new Map(); // key: shop domain, value: { shop, accessToken, scope, installedAt, updatedAt }
+// Reutiliza el Map en desarrollo/hot-reload para evitar perder estado.
+const g = globalThis;
+const stores =
+  g.__SAE_STORES__ instanceof Map ? g.__SAE_STORES__ : new Map();
+g.__SAE_STORES__ = stores; // idempotente
+
+// Estructura: key = shop domain
+// value = { shop, accessToken, scope, installedAt, updatedAt }
 
 /**
  * Guarda o actualiza las credenciales de una tienda.
@@ -54,3 +61,6 @@ export const db = {
   deleteShop,
   listShops,
 };
+
+// 👇 Export por defecto para compatibilidad con `import db from "~/lib/db.server"`
+export default db;
