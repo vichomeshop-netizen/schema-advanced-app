@@ -213,8 +213,9 @@
 {%- comment -%} ====== Collection: WebPage/CollectionPage + FAQPage ====== {%- endcomment -%}
 {%- if request.page_type == 'collection' and block.settings.emit_collection_auto -%}
 
-  {%- assign _desc = collection.description | strip_html | truncate: 300 -%}
-  <script type="application/ld+json" data-sae="1">
+{%- assign _desc = collection.description | strip_html | truncate: 300 -%}
+<script type="application/ld+json" data-sae="1">
+[
   {
     "@context":"https://schema.org",
     "@type":["WebPage","CollectionPage"],
@@ -222,14 +223,52 @@
     "url": {{ shop.url | append: collection.url | json | replace: '\/','/' }},
     "name": {{ collection.title | strip_html | json }},
     "description": {{ _desc | json }},
-    "inLanguage": {{ _lang_out | json }},
-	{%- if collection.updated_at -%}
- 	 "dateModified": "{{ collection.updated_at | date: '%Y-%m-%dT%H:%M:%SZ' }}",
-	{%- endif -%}
-	"isPartOf": { "@type":"WebSite", "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }} }{% if collection.image %}
-    , "primaryImageOfPage": { "@type": "ImageObject", "url": {{ collection.image | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}
+    "inLanguage": {{ _lang_out | json }}{% if collection.updated_at %},
+    "dateModified": "{{ collection.updated_at | date: '%Y-%m-%dT%H:%M:%SZ' }}"{% endif %},
+    "isPartOf": { "@type":"WebSite", "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }} }{% if collection.image %},
+    "primaryImageOfPage": { "@type": "ImageObject", "url": {{ collection.image | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}
+  },
+  {
+    "@context":"https://schema.org",
+    "@type":"ItemList",
+    "@id": {{ shop.url | append: collection.url | append: "#list" | json | replace: '\/','/' }},
+    "url": {{ shop.url | append: collection.url | json | replace: '\/','/' }},
+    "name": {{ collection.title | strip_html | json }},
+    "itemListOrder": "https://schema.org/ItemListOrderAscending",
+    "numberOfItems": {{ collection.products_count | default: collection.all_products_count | default: collection.products.size }},
+    "itemListElement": [
+      {%- assign _pos = 1 -%}
+      {%- for p in collection.products limit: 12 -%}
+        {%- assign _img_url = '' -%}
+        {%- if p.featured_image -%}
+          {%- assign _img_url = p.featured_image | image_url: width: 1000 | prepend: "https:" -%}
+        {%- endif -%}
+        {
+          "@type": "ListItem",
+          "position": {{ _pos }},
+          "item": {
+            "@type": "Product",
+            "name": {{ p.title | strip_html | json }},
+            "url": {{ shop.url | append: p.url | json | replace: '\/','/' }}{% if _img_url != '' %},
+            "image": {{ _img_url | json | replace: '\/','/' }}{% endif %},
+            "brand": { "@type": "Brand", "name": {{ p.vendor | default: shop.name | json }} },
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "{{ cart.currency.iso_code }}",
+              "price": "{{ p.price | divided_by: 100.00 }}",
+              "availability": "https://schema.org/{% if p.available %}InStock{% else %}OutOfStock{% endif %}",
+              "itemCondition": "https://schema.org/NewCondition",
+              "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
+            }
+          }
+        }{% unless forloop.last %},{% endunless %}
+        {%- assign _pos = _pos | plus: 1 -%}
+      {%- endfor -%}
+    ]
   }
-  </script>
+]
+</script>
+
 
   {%- comment -%} ====== FAQPage con un único handle (namespace.key) ====== {%- endcomment -%}
   {%- assign _faq_handle = block.settings.faq_handle | strip | default: 'custom.faq' -%}

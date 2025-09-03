@@ -16,6 +16,32 @@ const TEXT = {
         <li><code>primaryImageOfPage</code> si hay imagen</li>
       </ul>
 
+      <h3 style="margin-top:18px">ItemList (carrusel de productos)</h3>
+      <p>Se añade en el mismo <code>&lt;script type="application/ld+json"&gt;</code> que <strong>CollectionPage</strong>, como segundo objeto dentro de un array JSON. Límite de <strong>12</strong> ítems para no ralentizar.</p>
+      <ul>
+        <li><code>@type</code>: <code>ItemList</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ collection.url }}#list</code></li>
+        <li><code>url</code>, <code>name</code></li>
+        <li><code>itemListOrder</code>: <code>https://schema.org/ItemListOrderAscending</code></li>
+        <li><code>numberOfItems</code>: recuento de productos de la colección</li>
+        <li><code>itemListElement</code>: array de <code>ListItem</code> con:
+          <ul>
+            <li><code>position</code></li>
+            <li><code>item</code> <em>(Product)</em>: <code>name</code>, <code>url</code>, <code>image</code> (si existe), <code>brand</code>, <code>offers</code> (<code>Offer</code> con <code>priceCurrency</code>, <code>price</code>, <code>availability</code>, <code>itemCondition</code>, <code>seller</code>=<code>@id</code> de <code>#org</code>)</li>
+          </ul>
+        </li>
+        <li><strong>Sin</strong> <code>inLanguage</code> en <code>ItemList</code> (evita advertencia del validador).</li>
+      </ul>
+
+      <h4 style="margin-top:14px">Beneficios</h4>
+      <ul>
+        <li>Ayuda a los motores de búsqueda a entender la relación <em>colección → productos</em> y el orden.</li>
+        <li>Mejor contexto para rastreo e indexación de PDPs enlazadas desde la colección.</li>
+        <li>Estructura ligera (1 solo script, máx. 12 items) ⇒ impacto mínimo en rendimiento.</li>
+        <li>Compatible con el supresor (usa <code>data-sae="1"</code>), no se duplica con el tema.</li>
+        <li>No garantiza “rich results” por sí solo, pero mejora la comprensión del listado.</li>
+      </ul>
+
       <h4>FAQPage (opcional)</h4>
       <ul>
         <li>Handle de metafield configurable (<code>faq_handle</code>, por ejemplo <code>custom.faq</code>)</li>
@@ -41,6 +67,32 @@ const TEXT = {
         <li><code>dateModified</code> when available</li>
         <li><code>isPartOf</code>: <code>@id</code>=<code>{{ shop.url }}#website</code></li>
         <li><code>primaryImageOfPage</code> when there is a collection image</li>
+      </ul>
+
+      <h3 style="margin-top:18px">ItemList (product carousel)</h3>
+      <p>Added in the same <code>&lt;script type="application/ld+json"&gt;</code> as <strong>CollectionPage</strong>, as the second object inside a JSON array. Hard limit of <strong>12</strong> items to stay fast.</p>
+      <ul>
+        <li><code>@type</code>: <code>ItemList</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ collection.url }}#list</code></li>
+        <li><code>url</code>, <code>name</code></li>
+        <li><code>itemListOrder</code>: <code>https://schema.org/ItemListOrderAscending</code></li>
+        <li><code>numberOfItems</code>: collection products count</li>
+        <li><code>itemListElement</code>: array of <code>ListItem</code>:
+          <ul>
+            <li><code>position</code></li>
+            <li><code>item</code> <em>(Product)</em>: <code>name</code>, <code>url</code>, <code>image</code> (if any), <code>brand</code>, <code>offers</code> (<code>Offer</code> with <code>priceCurrency</code>, <code>price</code>, <code>availability</code>, <code>itemCondition</code>, <code>seller</code>=<code>@id</code> of <code>#org</code>)</li>
+          </ul>
+        </li>
+        <li><strong>No</strong> <code>inLanguage</code> on <code>ItemList</code> (avoids validator warning).</li>
+      </ul>
+
+      <h4 style="margin-top:14px">Benefits</h4>
+      <ul>
+        <li>Helps search engines understand the <em>collection → products</em> relationship and order.</li>
+        <li>Provides clearer context for crawling/indexing of linked PDPs.</li>
+        <li>Lightweight structure (single script, up to 12 items) ⇒ minimal performance impact.</li>
+        <li>Works with the JSON-LD suppressor (<code>data-sae="1"</code>), no theme duplication.</li>
+        <li>Does not guarantee rich results by itself, but improves list understanding.</li>
       </ul>
 
       <h4>FAQPage (optional)</h4>
@@ -70,6 +122,32 @@ const TEXT = {
         <li><code>primaryImageOfPage</code> quando há imagem</li>
       </ul>
 
+      <h3 style="margin-top:18px">ItemList (carrossel de produtos)</h3>
+      <p>Adicionado no mesmo <code>&lt;script type="application/ld+json"&gt;</code> que <strong>CollectionPage</strong>, como segundo objeto dentro de um array JSON. Limite fixo de <strong>12</strong> itens para não perder desempenho.</p>
+      <ul>
+        <li><code>@type</code>: <code>ItemList</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ collection.url }}#list</code></li>
+        <li><code>url</code>, <code>name</code></li>
+        <li><code>itemListOrder</code>: <code>https://schema.org/ItemListOrderAscending</code></li>
+        <li><code>numberOfItems</code>: total de produtos da coleção</li>
+        <li><code>itemListElement</code>: array de <code>ListItem</code> com:
+          <ul>
+            <li><code>position</code></li>
+            <li><code>item</code> <em>(Product)</em>: <code>name</code>, <code>url</code>, <code>image</code> (se houver), <code>brand</code>, <code>offers</code> (<code>Offer</code> com <code>priceCurrency</code>, <code>price</code>, <code>availability</code>, <code>itemCondition</code>, <code>seller</code>=<code>@id</code> de <code>#org</code>)</li>
+          </ul>
+        </li>
+        <li><strong>Sem</strong> <code>inLanguage</code> em <code>ItemList</code> (evita aviso do validador).</li>
+      </ul>
+
+      <h4 style="margin-top:14px">Benefícios</h4>
+      <ul>
+        <li>Ajuda os mecanismos de busca a entender a relação <em>coleção → produtos</em> e a ordem.</li>
+        <li>Melhor contexto para rastreamento e indexação das PDPs ligadas a partir da coleção.</li>
+        <li>Estrutura leve (um único script, até 12 itens) ⇒ impacto mínimo de performance.</li>
+        <li>Compatível com o supressor (<code>data-sae="1"</code>), sem duplicar com o tema.</li>
+        <li>Não garante rich results por si só, mas melhora a compreensão da lista.</li>
+      </ul>
+
       <h4>FAQPage (opcional)</h4>
       <ul>
         <li>Handle de metafield configurável (<code>faq_handle</code>, ex.: <code>custom.faq</code>)</li>
@@ -91,8 +169,10 @@ export default function CollectionsPage() {
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>{t.title}</h1>
-      <section style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}
-        dangerouslySetInnerHTML={{ __html: t.html }} />
+      <section
+        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}
+        dangerouslySetInnerHTML={{ __html: t.html }}
+      />
     </div>
   );
 }
