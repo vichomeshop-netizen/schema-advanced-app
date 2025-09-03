@@ -1,11 +1,10 @@
-
 // app/routes/app.jsx
 import { Outlet, NavLink, useSearchParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 /**
  * Layout padre de /app:
- * - ÚNICA barra lateral con pestañas (Panel, Products, Collections, Pages, Blog, Global, Suppressor, Settings)
+ * - ÚNICA barra lateral con pestañas (Overview, Panel, Products, Collections, Pages, Blog, Global, Suppressor, Settings)
  * - Selector de idioma ES/EN/PT (propaga via <Outlet context={{lang}} />)
  * - Botón "Open theme editor" robusto (host base64url → myshopify/admin o admin.shopify.com/store/...),
  *   con fallbacks a ?shop= y a /admin/ relativo.
@@ -98,7 +97,7 @@ export default function AppLayout() {
         <h2 style={{ fontSize: 16, margin: "6px 0 10px" }}>Schema Advanced</h2>
 
         <label style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
-          {lang === "es" ? "Idioma" : lang === "pt" ? "Idioma" : "Language"}
+          {lang === "en" ? "Language" : "Idioma"}
           <select
             value={lang}
             onChange={(e) => setLang(e.target.value)}
@@ -111,14 +110,35 @@ export default function AppLayout() {
         </label>
 
         <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
-          <NavLink end to="." style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Painel":lang==="en"?"Panel":"Panel"}</NavLink>
-          <NavLink to="products" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Produtos":lang==="en"?"Products":"Productos"}</NavLink>
-          <NavLink to="collections" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Coleções":lang==="en"?"Collections":"Colecciones"}</NavLink>
-          <NavLink to="pages" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Páginas":lang==="en"?"Pages":"Páginas"}</NavLink>
-          <NavLink to="blog" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Blog / Artigos":"Blog / Articles"}</NavLink>
-          <NavLink to="global" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Global":"Global"}</NavLink>
-          <NavLink to="suppressor" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Supressor JSON-LD":lang==="en"?"JSON-LD Suppressor":"Supresor JSON-LD"}</NavLink>
-          <NavLink to="settings" style={({ isActive }) => navBtn(isActive)}>{lang==="pt"?"Configurações":lang==="en"?"Settings":"Ajustes"}</NavLink>
+          {/* Nueva pestaña: Overview */}
+          <NavLink to="overview" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
+          </NavLink>
+
+          <NavLink end to="." style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Painel" : lang === "en" ? "Panel" : "Panel"}
+          </NavLink>
+          <NavLink to="products" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Produtos" : lang === "en" ? "Products" : "Productos"}
+          </NavLink>
+          <NavLink to="collections" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Coleções" : lang === "en" ? "Collections" : "Colecciones"}
+          </NavLink>
+          <NavLink to="pages" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
+          </NavLink>
+          <NavLink to="blog" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
+          </NavLink>
+          <NavLink to="global" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Global" : "Global"}
+          </NavLink>
+          <NavLink to="suppressor" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Supressor JSON-LD" : lang === "en" ? "JSON-LD Suppressor" : "Supresor JSON-LD"}
+          </NavLink>
+          <NavLink to="settings" style={({ isActive }) => navBtn(isActive)}>
+            {lang === "pt" ? "Configurações" : lang === "en" ? "Settings" : "Ajustes"}
+          </NavLink>
         </nav>
 
         <button
@@ -144,3 +164,4 @@ export default function AppLayout() {
     </div>
   );
 }
+
