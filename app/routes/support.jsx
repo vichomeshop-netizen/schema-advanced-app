@@ -1,5 +1,6 @@
+
 // app/routes/support.jsx
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
 
 const EMAIL = "soporte@vichome.es";
@@ -52,8 +53,31 @@ const STR = {
 function useLang() {
   const [sp] = useSearchParams();
   const q = sp.get("lang");
-  const [lang, setLang] = useState(() => (q && ["es", "en", "pt"].includes(q) ? q : (localStorage.getItem("sae_lang") || "en")));
-  useEffect(() => { localStorage.setItem("sae_lang", lang); }, [lang]);
+  const allowed = (v) => ["es", "en", "pt"].includes(v);
+  // Inicial: solo URL o 'en' (no tocar localStorage en SSR)
+  const [lang, setLang] = useState(allowed(q) ? q : "en");
+
+  // Hidratar desde localStorage tras montar
+  useEffect(() => {
+    try {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("sae_lang") : null;
+      if (!allowed(q) && allowed(stored) && stored !== lang) setLang(stored);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistir y sincronizar ?lang=
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sae_lang", lang);
+        const nsp = new URLSearchParams(window.location.search);
+        nsp.set("lang", lang);
+        window.history.replaceState({}, "", `?${nsp.toString()}`);
+      }
+    } catch {}
+  }, [lang]);
+
   return { lang, setLang, t: STR[lang] || STR.en };
 }
 
@@ -68,16 +92,21 @@ export default function Support() {
         <label style={{ fontSize: 12, color: "#6b7280" }}>
           {t.lang}{" "}
           <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 6 }}>
-            <option value="en">EN</option><option value="es">ES</option><option value="pt">PT</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="pt">PT</option>
           </select>
         </label>
       </div>
+
       <p style={{ color: "#6b7280", marginBottom: 24 }}>{t.subtitle}</p>
 
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 20, marginBottom: 8 }}>{t.checklist}</h2>
         <ul style={{ paddingLeft: 20 }}>
-          {t.items.map((it, i) => <li key={i} dangerouslySetInnerHTML={{ __html: it }} />)}
+          {t.items.map((it, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: it }} />
+          ))}
         </ul>
       </section>
 
@@ -87,9 +116,9 @@ export default function Support() {
       </section>
 
       <footer style={{ marginTop: 32, color: "#6b7280" }}>
-        <a href={withLang("/privacy")}>{t.footer.privacy}</a> ·{" "}
-        <a href={withLang("/terms")}>{t.footer.terms}</a> ·{" "}
-        <a href={withLang("/support")}>{t.footer.support}</a>
+        <a href={withLang("/privacy")}> {t.footer.privacy}</a> ·{" "}
+        <a href={withLang("/terms")}> {t.footer.terms}</a> ·{" "}
+        <a href={withLang("/support")}> {t.footer.support}</a>
       </footer>
     </main>
   );
