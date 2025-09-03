@@ -1,5 +1,5 @@
 import { redirect } from "@remix-run/node";
-import { shopify } from "../lib/shopify.server.js"; // <- OJO: relativo y con .js
+import { shopify } from "~/lib/shopify.server"; // <- OJO: relativo y con .js
 
 export async function loader({ request }) {
   const url = new URL(request.url);

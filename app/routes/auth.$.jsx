@@ -1,5 +1,5 @@
 import { redirect } from "@remix-run/node";
-import { shopify } from "../lib/shopify.server.js"; // <- relativo y con .js
+import { shopify } from "~/lib/shopify.server"; // <- relativo y con .js
 import { db } from "../lib/db.server.js";           // <- relativo y con .js
 
 export async function loader({ request, params }) {
