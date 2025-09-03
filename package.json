@@ -22,7 +22,8 @@
   },
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": ">=18 <23",
+    "npm": ">=9"
   },
   "dependencies": {
     "@remix-run/fs-routes": "^2.16.1",
@@ -31,6 +32,7 @@
     "@remix-run/serve": "^2.16.1",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^12.0.0",
+    "@shopify/shopify-api": "^11.14.1",
     "@shopify/shopify-app-remix": "^3.7.0",
     "isbot": "^5.1.0",
     "react": "^18.2.0",
@@ -75,5 +77,18 @@
     "minimatch": "9.0.5",
     "vite": "^6.2.2"
   },
-  "author": "vmms2"
+  "author": "vmms2",
+  "version": "1.0.0",
+  "description": "This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using the [Remix](https://remix.run) framework.",
+  "main": ".graphqlrc.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vichomeshop-netizen/schema-advanced-app.git"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vichomeshop-netizen/schema-advanced-app/issues"
+  },
+  "homepage": "https://github.com/vichomeshop-netizen/schema-advanced-app#readme"
 }
