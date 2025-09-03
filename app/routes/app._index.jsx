@@ -1,329 +1,365 @@
+
 // app/routes/app._index.jsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOutletContext, useSearchParams } from "@remix-run/react";
 
-// === STRINGS (EN/ES/PT) ===
+/**
+ * NOTA: Esta pantalla es puramente informativa para el cliente.
+ * Resume TODO lo que emite la app en cada tipo de página, basado en tu snippet Liquid.
+ */
+
+// === I18N (ES principal). EN/PT heredan texto ES para no dejar nada vacío. ===
 const STRINGS = {
-  en: {
-    title: "Schema Advanced — Guide",
-    intro:
-      "Schema Advanced automatically injects high-quality JSON-LD into your Shopify store. Beginners can follow the quick steps below, while advanced users will find detailed explanations of each entity.",
-    stepsTitle: "Quick start (for beginners)",
-    steps: [
-      "Go to Online Store → Themes → Customize",
-      "Open the App embeds tab",
-      "Enable Schema Advanced and save changes",
-      'Visit your storefront and confirm <code>data-sae="1"</code> appears in the JSON-LD scripts',
-      "Return here and check the status below shows Active",
-    ],
-    statusTitle: "Status",
-    statusChecking: "Checking…",
-    statusOk: "Active — app embed detected on the storefront",
-    statusWarn: "Not detected — enable the app embed in your theme and reload your storefront",
-    retry: "Retry check",
-    openEditor: "Open theme editor",
-    whatTitle: "What does Schema Advanced add?",
-    whatIntro:
-      "Schema Advanced provides a complete set of JSON-LD entities designed for SEO rich results:",
-    whatList: [
-      "<strong>Organization</strong>: business name, legal name, logo, image, contact info.",
-      "<strong>WebSite</strong>: site search (<code>SearchAction</code>).",
-      "<strong>BreadcrumbList</strong>: hierarchical navigation (Home → Collection → Product).",
-      "<strong>CollectionPage</strong>: metadata for category pages.",
-      "<strong>FAQPage</strong>: FAQs extracted from metafields or metaobjects.",
-      "<strong>Product</strong>: GTIN, MPN, SKU, images, brand, description, pricing.",
-      "<strong>AggregateOffer</strong>: structured price range for multi-variant products.",
-      "<strong>AggregateRating</strong>: average rating and count, if reviews are available.",
-      "<strong>BlogPosting</strong>: articles metadata.",
-      "<strong>HowTo</strong>: auto-generated from article headings.",
-      "<strong>ContactPage</strong> and <strong>AboutPage</strong>.",
-    ],
-    advancedTitle: "Technical details (for advanced users)",
-    advancedBullets: [
-      "<strong>@id anchors</strong>: consistent identifiers (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
-      "<strong>sameAs</strong>: normalized external URLs (social, directories).",
-      "<strong>isPartOf</strong>: collections reference the parent <code>WebSite</code> entity.",
-      "<strong>inLanguage</strong>: automatically detects ES, EN, PT; can be forced via settings.",
-      "<strong>OfferShippingDetails</strong>: structured handling/transit times and optional <code>shippingRate</code>.",
-      "<strong>MerchantReturnPolicy</strong>: days, method and fees configurable.",
-      "<strong>Suppressor</strong>: removes overlapping theme JSON-LD, keeping only scripts with <code>data-sae</code>.",
-      "<strong>ImageObject</strong>: logo and primary images are tagged for Google Image search.",
-    ],
-    verifyTitle: "How to verify",
-    verifyText:
-      'Validate with <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Google Rich Results Test</a> or <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Schema.org Validator</a>.',
-    helpTitle: "Help & Legal",
-    helpLinks: { support: "Support", privacy: "Privacy Policy", terms: "Terms of Service" },
-  },
   es: {
     title: "Schema Advanced — Guía",
     intro:
-      "Schema Advanced inyecta automáticamente JSON-LD de alta calidad en tu tienda Shopify. Los usuarios básicos pueden seguir los pasos rápidos, y los avanzados encontrarán explicaciones detalladas de cada entidad.",
-    stepsTitle: "Inicio rápido (para principiantes)",
-    steps: [
-      "Ve a Online Store → Themes → Customize",
-      "Abre la pestaña App embeds",
-      "Activa Schema Advanced y guarda los cambios",
-      'Visita tu storefront y confirma que aparece <code>data-sae="1"</code> en los scripts JSON-LD',
-      "Vuelve aquí y comprueba que el estado muestre Activo",
-    ],
-    statusTitle: "Estado",
-    statusChecking: "Comprobando…",
-    statusOk: "Activo — app embed detectado en el storefront",
-    statusWarn: "No detectado — activa el app embed en tu tema y recarga el storefront",
-    retry: "Reintentar",
+      "Esta guía explica con detalle TODO lo que emite Schema Advanced en cada tipo de página. Usa las pestañas para ver Productos, Colecciones, Páginas, Blog/Artículos, Global y el Supresor.",
     openEditor: "Abrir editor de temas",
-    whatTitle: "¿Qué añade Schema Advanced?",
-    whatIntro:
-      "Schema Advanced emite un conjunto completo de entidades JSON-LD diseñadas para resultados enriquecidos:",
-    whatList: [
-      "<strong>Organization</strong>: nombre, razón social, logo, imagen, contacto.",
-      "<strong>WebSite</strong>: buscador interno (<code>SearchAction</code>).",
-      "<strong>BreadcrumbList</strong>: navegación jerárquica (Inicio → Colección → Producto).",
-      "<strong>CollectionPage</strong>: metadatos para páginas de colección.",
-      "<strong>FAQPage</strong>: FAQs desde metafields o metaobjetos.",
-      "<strong>Product</strong>: GTIN, MPN, SKU, imágenes, marca, descripción, precios.",
-      "<strong>AggregateOffer</strong>: rango de precios en productos con variantes.",
-      "<strong>AggregateRating</strong>: media de valoraciones y recuento, si existen reseñas.",
-      "<strong>BlogPosting</strong>: metadatos de artículos.",
-      "<strong>HowTo</strong>: generado automáticamente a partir de encabezados H2.",
-      "<strong>ContactPage</strong> y <strong>AboutPage</strong>.",
-    ],
-    advancedTitle: "Detalles técnicos (para avanzados)",
-    advancedBullets: [
-      "<strong>@id anchors</strong>: identificadores consistentes (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
-      "<strong>sameAs</strong>: URLs externas normalizadas (redes, directorios).",
-      "<strong>isPartOf</strong>: las colecciones referencian la entidad <code>WebSite</code> padre.",
-      "<strong>inLanguage</strong>: detecta ES, EN, PT automáticamente; configurable en ajustes.",
-      "<strong>OfferShippingDetails</strong>: tiempos de gestión y tránsito estructurados; <code>shippingRate</code> opcional.",
-      "<strong>MerchantReturnPolicy</strong>: días, método y tasas configurables.",
-      "<strong>Supresor</strong>: elimina JSON-LD duplicado del tema, mantiene scripts con <code>data-sae</code>.",
-      "<strong>ImageObject</strong>: logo e imágenes principales etiquetadas para Google Imágenes.",
-    ],
-    verifyTitle: "Cómo verificar",
-    verifyText:
-      'Valida con la <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Prueba de resultados enriquecidos de Google</a> o el <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">validador de Schema.org</a>.',
-    helpTitle: "Ayuda y legal",
-    helpLinks: { support: "Soporte", privacy: "Política de privacidad", terms: "Términos del servicio" },
+    tabs: {
+      guide: "Guía",
+      products: "Productos",
+      collections: "Colecciones",
+      pages: "Páginas",
+      blog: "Blog / Artículos",
+      global: "Global (Organization, WebSite, Breadcrumbs)",
+      suppressor: "Supresor JSON-LD",
+    },
+
+    guideHtml: `
+      <p><strong>Cómo usar:</strong> Activa el App embed en <em>Online Store → Themes → Customize → App embeds</em>.
+      Schema Advanced añadirá bloques JSON-LD con <code>data-sae="1"</code>. Valida con
+      <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Google Rich Results Test</a>
+      o el <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Validador de Schema.org</a>.</p>
+      <p>En las pestañas tienes la lista exhaustiva de propiedades emitidas, la lógica de cuándo aparecen y de dónde salen los datos (metafields, settings, etc.).</p>
+    `,
+
+    productsHtml: `
+      <h3>Product (PDP)</h3>
+      <p>Se emite en páginas de producto cuando <code>Emitir Product automáticamente en PDP</code> está activo.</p>
+
+      <h4>Identidad y vínculos</h4>
+      <ul>
+        <li><code>@type</code>: <code>Product</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ product.url }}#product</code></li>
+        <li><code>mainEntityOfPage</code>: WebPage con <code>@id</code> = URL del producto</li>
+        <li><code>url</code>: URL absoluta del producto</li>
+        <li><code>inLanguage</code>: heredado de Global (ver pestaña Global)</li>
+      </ul>
+
+      <h4>Datos básicos</h4>
+      <ul>
+        <li><code>name</code>: título del producto</li>
+        <li><code>description</code>: descripción del producto, saneada y truncada a ~500 caracteres</li>
+        <li><code>category</code>: título de la primera colección del producto; si no, <code>product.type</code></li>
+        <li><code>brand</code>: <code>Brand</code> con <code>name</code> = <code>product.vendor</code> o, en su defecto, nombre de la tienda</li>
+      </ul>
+
+      <h4>Identificadores</h4>
+      <ul>
+        <li><code>mpn</code>: de <code>product.metafields.custom.mpn</code> o, si no, <code>variant.sku</code> seleccionado</li>
+        <li><code>gtin8/12/13/14</code>: detectado por longitud de <code>barcode</code> (tanto en variante seleccionada como por-variante)</li>
+      </ul>
+
+      <h4>Imágenes</h4>
+      <ul>
+        <li><code>image</code>: hasta 8 imágenes del producto a 1200px (URLs absolutas https)</li>
+      </ul>
+
+      <h4>Propiedades adicionales (<code>additionalProperty</code>)</h4>
+      <p>Se generan como <code>PropertyValue</code> si existen estos metafields (namespace <code>custom</code>):</p>
+      <ul>
+        <li><strong>Color</strong> → <code>custom.color</code></li>
+        <li><strong>Material</strong> → <code>custom.material</code></li>
+        <li><strong>Patrón</strong> → <code>custom.pattern</code></li>
+        <li><strong>Dimensiones</strong> → <code>custom.dimensions_text</code></li>
+        <li><strong>Peso</strong> → <code>custom.weight_value</code> + <code>custom.weight_unit</code></li>
+      </ul>
+
+      <h4>Ofertas y precios</h4>
+      <ul>
+        <li>Moneda: <code>cart.currency.iso_code</code></li>
+        <li>Si hay <strong>múltiples variantes</strong>: <code>AggregateOffer</code>
+          <ul>
+            <li><code>lowPrice</code>, <code>highPrice</code>, <code>offerCount</code></li>
+            <li><code>offers[]</code>: array de <code>Offer</code> por variante con:
+              <ul>
+                <li><code>url</code> con <code>?variant=ID</code></li>
+                <li><code>sku</code> (si existe)</li>
+                <li><code>gtin*</code> por variante (si <code>barcode</code>)</li>
+                <li><code>price</code> y <code>priceValidUntil</code> (~1 año desde hoy)</li>
+                <li><code>availability</code>: forzado por setting <code>force_availability</code> o calculado (<code>InStock</code>/<code>OutOfStock</code>)</li>
+                <li><code>itemCondition</code>: <code>NewCondition</code></li>
+                <li><code>seller</code>: <code>@id</code> de Organization</li>
+                <li><code>shippingDetails</code>: ver “Envío”</li>
+              </ul>
+            </li>
+            <li><code>hasMerchantReturnPolicy</code> global (ver “Devoluciones”)</li>
+          </ul>
+        </li>
+        <li>Si hay <strong>una sola variante</strong>: <code>Offer</code> plano con los mismos campos relevantes</li>
+      </ul>
+
+      <h4>Envío (<code>OfferShippingDetails</code>)</h4>
+      <ul>
+        <li><code>shippingDestination</code>: lista de <code>DefinedRegion</code> por país desde setting <code>shipping_countries</code> (por defecto: ES, PT)</li>
+        <li><code>deliveryTime</code>:
+          <ul>
+            <li><code>handlingTime</code>: rango en días desde setting <code>handling_days</code> (p.ej. <code>0-1</code>)</li>
+            <li><code>transitTime</code>: rango en días desde setting <code>shipping_days</code> (p.ej. <code>2-3</code>)</li>
+          </ul>
+        </li>
+        <li><code>shippingRate</code> opcional: si <code>include_shipping_rate</code> y <code>shipping_rate_value</code> están definidos</li>
+      </ul>
+
+      <h4>Devoluciones (<code>MerchantReturnPolicy</code>)</h4>
+      <ul>
+        <li><code>returnPolicyCategory</code>: <code>MerchantReturnFiniteReturnWindow</code></li>
+        <li><code>merchantReturnDays</code>: setting <code>returns_days</code> (por defecto 30)</li>
+        <li><code>refundType</code>: <code>FullRefund</code></li>
+        <li><code>returnMethod</code>: <code>ReturnByMail</code></li>
+        <li><code>returnFees</code>: <code>FreeReturn</code> si <code>free_returns</code> = true; si no, <code>ReturnShippingFees</code></li>
+      </ul>
+
+      <h4>Valoraciones (si existen)</h4>
+      <ul>
+        <li><code>aggregateRating</code> con <code>ratingValue</code>, <code>reviewCount</code>, <code>bestRating</code>=5, <code>worstRating</code>=1</li>
+        <li>Fuente: <code>product.metafields.reviews.rating</code> y <code>product.metafields.reviews.rating_count</code></li>
+      </ul>
+    `,
+
+    collectionsHtml: `
+      <h3>CollectionPage (Colección)</h3>
+      <p>Se emite en páginas de colección cuando <code>emit_collection_auto</code> está activo.</p>
+
+      <h4>WebPage + CollectionPage</h4>
+      <ul>
+        <li><code>@type</code>: <code>["WebPage","CollectionPage"]</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ collection.url }}#collection</code></li>
+        <li><code>url</code>, <code>name</code> (título), <code>description</code> (saneada y truncada ~300)</li>
+        <li><code>inLanguage</code>: ver pestaña Global</li>
+        <li><code>dateModified</code>: <code>collection.updated_at</code> (si existe)</li>
+        <li><code>isPartOf</code>: referencia a <code>WebSite</code> (<code>@id</code> = <code>{{ shop.url }}#website</code>)</li>
+        <li><code>primaryImageOfPage</code>: <code>ImageObject</code> con imagen de la colección (si existe)</li>
+      </ul>
+
+      <h4>FAQPage (opcional)</h4>
+      <p>Handle configurable en <code>faq_handle</code> (por defecto <code>custom.faq</code>). Se soportan dos fuentes:</p>
+      <ul>
+        <li><strong>Metaobjects</strong>: el metafield devuelve entradas con campos <code>question</code>/<code>answer</code> (soporta <em>pregunta/respuesta</em>).</li>
+        <li><strong>Texto HTML</strong>: se parsean párrafos para emparejar preguntas (¿...?) y respuestas. Se necesita ≥2 Q&amp;A para emitir <code>FAQPage</code>.</li>
+      </ul>
+      <p>Salida: <code>FAQPage</code> con <code>mainEntity</code> = array de <code>Question</code> + <code>acceptedAnswer</code>.</p>
+    `,
+
+    pagesHtml: `
+      <h3>Páginas (Contact / About)</h3>
+
+      <h4>ContactPage</h4>
+      <ul>
+        <li>Se activa si la plantilla contiene <code>contact</code> o la ruta incluye <code>/pages/contact</code></li>
+        <li><code>@type</code>: <code>["WebPage","ContactPage"]</code></li>
+        <li><code>@id</code>: URL de la página con <code>#contact</code></li>
+        <li><code>name</code>, <code>description</code> (saneada y truncada ~300), <code>inLanguage</code></li>
+        <li><code>isPartOf</code>: <code>WebSite</code> (<code>@id</code> = <code>{{ shop.url }}#website</code>)</li>
+        <li><code>about</code>: <code>@id</code> de <code>Organization</code></li>
+      </ul>
+
+      <h4>AboutPage</h4>
+      <ul>
+        <li>Se activa si la plantilla contiene <code>about</code> o rutas típicas (<code>/pages/acerca</code>, <code>/pages/sobre-nosotros</code>, <code>/pages/about</code>)</li>
+        <li>Estructura análoga a ContactPage con <code>@type</code>: <code>["WebPage","AboutPage"]</code> y <code>#about</code> como ancla</li>
+      </ul>
+    `,
+
+    blogHtml: `
+      <h3>BlogPosting (Artículos)</h3>
+      <ul>
+        <li><code>@type</code>: <code>BlogPosting</code></li>
+        <li><code>@id</code>: <code>{{ shop.url }}{{ article.url }}#article</code></li>
+        <li><code>mainEntityOfPage</code>: WebPage del artículo</li>
+        <li><code>headline</code> (≤110), <code>description</code> (≤300, saneada), <code>image</code> (ImageObject con url/width/height)</li>
+        <li><code>datePublished</code>, <code>dateModified</code></li>
+        <li><code>author</code> (Person) y <code>publisher</code> (Organization por @id)</li>
+        <li><code>inLanguage</code>, <code>isAccessibleForFree</code>=true, <code>wordCount</code>, <code>articleSection</code> (título del blog)</li>
+      </ul>
+
+      <h4>HowTo (opcional)</h4>
+      <ul>
+        <li>Activado por setting <code>emit_howto_auto</code></li>
+        <li>Se genera automáticamente a partir de los H2 del artículo (normaliza H3 como H2). Requiere ≥2 pasos.</li>
+        <li><code>@type</code>: <code>HowTo</code>; <code>@id</code> = URL del artículo con <code>#howto</code></li>
+        <li>Incluye: <code>name</code>, <code>description</code>, <code>image</code> (si existe), fechas, <code>author</code>, <code>publisher</code>, y <code>step[]</code> (cada uno con <code>name</code> + <code>text</code>)</li>
+      </ul>
+    `,
+
+    globalHtml: `
+      <h3>Organization (todas las páginas)</h3>
+      <ul>
+        <li><code>@type</code>: <code>Organization</code>; <code>@id</code> = <code>{{ shop.url }}#org</code>; <code>url</code>, <code>name</code>, <code>legalName</code></li>
+        <li><code>logo</code> e <code>image</code> (ImageObject) desde setting <code>org_logo</code></li>
+        <li><code>sameAs</code>: lista normalizada (separadores: espacios, comas, saltos de línea). Asegura <code>https://</code> y deduplica.</li>
+        <li><code>email</code> y <code>contactPoint</code> (type Customer Support, email y <code>telephone</code> opcional)</li>
+        <li><code>address</code>: PostalAddress desde settings (<em>street</em>, <em>city</em>, <em>postal</em>, <em>country</em>)</li>
+        <li><code>areaServed</code>: array de países desde <code>shipping_countries</code> (p.ej. ES, PT)</li>
+        <li><code>hasMerchantReturnPolicy</code>: política global (días, método, tasas)</li>
+      </ul>
+
+      <h3>WebSite (home opcional)</h3>
+      <ul>
+        <li>Solo en home si <code>website_on_home_only</code> = true; si no, en todas</li>
+        <li><code>@id</code> = <code>{{ shop.url }}#website</code>; <code>publisher</code> apunta a <code>#org</code></li>
+        <li><code>inLanguage</code>: <em>auto</em> por <code>language_mode</code> (ES/PT/EN) con detección por <em>locale</em>, <em>routes.root_url</em> y <em>shop.primary_locale</em></li>
+        <li><code>potentialAction</code>: <code>SearchAction</code> → <code>{{ shop.url }}/search?q={search_term_string}</code></li>
+      </ul>
+
+      <h3>BreadcrumbList (toggle)</h3>
+      <ul>
+        <li>Activado por <code>emit_breadcrumbs</code>. Estructura simple:
+          <ul>
+            <li><strong>Home</strong> → Collection (si aplica) → Product (si aplica)</li>
+          </ul>
+        </li>
+      </ul>
+    `,
+
+    suppressorHtml: `
+      <h3>Supresor de JSON-LD del tema</h3>
+      <p>Cuando <code>suppress_theme_jsonld</code> está activo, se ejecuta un script que:</p>
+      <ul>
+        <li>Detecta <code>&lt;script type="application/ld+json"&gt;</code> inyectados por el tema</li>
+        <li>Elimina aquellos cuyo <code>@type</code> coincide con los que emite la app (<em>Product, Organization, WebSite, BreadcrumbList, CollectionPage, WebPage, FAQPage, BlogPosting, HowTo, ContactPage, AboutPage, ItemList</em>)</li>
+        <li>Respeta los de la app (marcados con <code>data-sae="1"</code>)</li>
+        <li>Vigila mutaciones (MutationObserver) y limpia múltiple veces (DOMContentLoaded + timeouts)</li>
+      </ul>
+      <p>Objetivo: evitar duplicados y conflictos con el JSON-LD del tema.</p>
+    `,
   },
-  pt: {
-    title: "Schema Advanced — Guia",
-    intro:
-      "O Schema Advanced injeta automaticamente JSON-LD de alta qualidade na sua loja Shopify. Usuários básicos podem seguir os passos rápidos e os avançados encontrarão explicações detalhadas de cada entidade.",
-    stepsTitle: "Início rápido (para iniciantes)",
-    steps: [
-      "Vá para Online Store → Themes → Customize",
-      "Abra a aba App embeds",
-      "Ative o Schema Advanced e salve",
-      'Visite o storefront e confirme que <code>data-sae="1"</code> aparece nos scripts JSON-LD',
-      "Volte aqui e verifique que o estado mostra Ativo",
-    ],
-    statusTitle: "Estado",
-    statusChecking: "Verificando…",
-    statusOk: "Ativo — app embed detectado no storefront",
-    statusWarn: "Não detectado — ative o app embed no tema e recarregue o storefront",
-    retry: "Repetir",
-    openEditor: "Abrir editor do tema",
-    whatTitle: "O que o Schema Advanced adiciona?",
-    whatIntro:
-      "O Schema Advanced emite um conjunto completo de entidades JSON-LD para rich results:",
-    whatList: [
-      "<strong>Organization</strong>: nome, razão social, logo, imagem, contato.",
-      "<strong>WebSite</strong>: busca interna (<code>SearchAction</code>).",
-      "<strong>BreadcrumbList</strong>: navegação hierárquica (Início → Coleção → Produto).",
-      "<strong>CollectionPage</strong>: metadados para páginas de coleção.",
-      "<strong>FAQPage</strong>: FAQs de metafields ou metaobjects.",
-      "<strong>Product</strong>: GTIN, MPN, SKU, imagens, marca, descrição, preços.",
-      "<strong>AggregateOffer</strong>: faixa de preços em produtos com variações.",
-      "<strong>AggregateRating</strong>: média de avaliações e contagem, se houver.",
-      "<strong>BlogPosting</strong>: metadados de artigos.",
-      "<strong>HowTo</strong>: gerado automaticamente a partir de H2.",
-      "<strong>ContactPage</strong> e <strong>AboutPage</strong>.",
-    ],
-    advancedTitle: "Detalhes técnicos (para avançados)",
-    advancedBullets: [
-      "<strong>@id anchors</strong>: identificadores consistentes (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
-      "<strong>sameAs</strong>: URLs externas normalizadas (redes/diretórios).",
-      "<strong>isPartOf</strong>: coleções referenciam a entidade <code>WebSite</code> pai.",
-      "<strong>inLanguage</strong>: PT/EN/ES detectado automaticamente; configurável em ajustes.",
-      "<strong>OfferShippingDetails</strong>: tempos de manuseio/transporte estruturados; <code>shippingRate</code> opcional.",
-      "<strong>MerchantReturnPolicy</strong>: dias, método e taxas configuráveis.",
-      "<strong>Supressor</strong>: remove JSON-LD duplicado do tema, mantém scripts com <code>data-sae</code>.",
-      "<strong>ImageObject</strong>: logo e imagens principais para Google Imagens.",
-    ],
-    verifyTitle: "Como verificar",
-    verifyText:
-      'Valide com o <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Teste de resultados enriquecidos do Google</a> ou o <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">validador do Schema.org</a>.',
-    helpTitle: "Ajuda & jurídico",
-    helpLinks: { support: "Suporte", privacy: "Política de privacidade", terms: "Termos de serviço" },
-  },
+
+  // EN/PT → mostramos lo mismo que ES para no dejar huecos.
+  en: null,
+  pt: null,
 };
 
-// Hook idioma
+// Hook idioma (ES por defecto con fallback)
 function useI18n() {
   const { lang: ctxLang } = useOutletContext() || {};
   const [sp] = useSearchParams();
   const q = sp.get("lang");
-  const lang = (q && ["es", "en", "pt"].includes(q)) ? q : (ctxLang || "en");
-  return STRINGS[lang] || STRINGS.en;
+  const code = (q && ["es", "en", "pt"].includes(q)) ? q : (ctxLang || "es");
+  const base = STRINGS.es;
+  const t = STRINGS[code] || {};
+  return { ...base, ...t }; // mezcla para que nunca falte nada
 }
 
 // UI helpers
-const Card = ({ children }) => (
-  <div style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 8, background: "#fff" }}>{children}</div>
-);
 const Section = ({ title, children }) => (
   <section style={{ marginBottom: 28 }}>
-    <h2 style={{ fontSize: 18, marginBottom: 10 }}>{title}</h2>
+    {title ? <h2 style={{ fontSize: 18, marginBottom: 10 }}>{title}</h2> : null}
     {children}
   </section>
+);
+const Tabs = ({ tabs, active, onChange }) => (
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+    {tabs.map((t) => (
+      <button
+        key={t.key}
+        onClick={() => onChange(t.key)}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: active === t.key ? "2px solid #111827" : "1px solid #d1d5db",
+          background: active === t.key ? "#111827" : "#fff",
+          color: active === t.key ? "#fff" : "#111827",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        {t.label}
+      </button>
+    ))}
+  </div>
 );
 
 export default function Dashboard() {
   const t = useI18n();
   const [sp] = useSearchParams();
-
-  // shop para construir la URL del editor (no se usa para la detección)
   const shop =
     sp.get("shop") ||
     (typeof window !== "undefined" && window.Shopify && window.Shopify.shop) ||
     "";
 
-  const [statusHtml, setStatusHtml] = useState(t.statusChecking);
-  const [loading, setLoading] = useState(false);
-
-  async function checkStatus() {
-    setLoading(true);
-    setStatusHtml(t.statusChecking);
-    try {
-      // Detección fiable via Admin API (requiere scope read_themes en tu backend)
-      const r = await fetch(`/api/sae-admin-detect`, {
-        headers: { "cache-control": "no-cache" },
-      });
-      const j = await r.json().catch(() => ({}));
-      setStatusHtml(j && j.active ? t.statusOk : t.statusWarn);
-    } catch {
-      setStatusHtml(t.statusWarn);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    checkStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Mantener textos si cambia idioma
-  useEffect(() => {
-    setStatusHtml(prev => {
-      if (prev === STRINGS.en.statusChecking || prev === STRINGS.es.statusChecking || prev === STRINGS.pt.statusChecking) return t.statusChecking;
-      if (prev === STRINGS.en.statusOk || prev === STRINGS.es.statusOk || prev === STRINGS.pt.statusOk) return t.statusOk;
-      if (prev === STRINGS.en.statusWarn || prev === STRINGS.es.statusWarn || prev === STRINGS.pt.statusWarn) return t.statusWarn;
-      return prev;
-    });
-  }, [t]);
-
   const editorUrl = shop ? `https://${shop}/admin/themes/current/editor?context=apps` : "";
 
+  const tabs = [
+    { key: "guide", label: t.tabs.guide },
+    { key: "products", label: t.tabs.products },
+    { key: "collections", label: t.tabs.collections },
+    { key: "pages", label: t.tabs.pages },
+    { key: "blog", label: t.tabs.blog },
+    { key: "global", label: t.tabs.global },
+    { key: "suppressor", label: t.tabs.suppressor },
+  ];
+
+  const [active, setActive] = useState("products");
+
+  const renderTab = () => {
+    switch (active) {
+      case "guide":
+        return <div dangerouslySetInnerHTML={{ __html: t.guideHtml }} />;
+      case "products":
+        return <div dangerouslySetInnerHTML={{ __html: t.productsHtml }} />;
+      case "collections":
+        return <div dangerouslySetInnerHTML={{ __html: t.collectionsHtml }} />;
+      case "pages":
+        return <div dangerouslySetInnerHTML={{ __html: t.pagesHtml }} />;
+      case "blog":
+        return <div dangerouslySetInnerHTML={{ __html: t.blogHtml }} />;
+      case "global":
+        return <div dangerouslySetInnerHTML={{ __html: t.globalHtml }} />;
+      case "suppressor":
+        return <div dangerouslySetInnerHTML={{ __html: t.suppressorHtml }} />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5, maxWidth: 900, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 12 }}>{t.title}</h1>
-      <p style={{ marginBottom: 18, color: "#374151" }} dangerouslySetInnerHTML={{ __html: t.intro }} />
-
-      <Section title={t.stepsTitle}>
-        <ol style={{ paddingLeft: 20, color: "#111", marginBottom: 12 }}>
-          {t.steps.map((s, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: s }} />
-          ))}
-        </ol>
-
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Enlace seguro que abre el editor en la pestaña superior (fuera del iframe) */}
-          <a
-            href={editorUrl || "#"}
-            target="_top"
-            rel="noopener"
-            onClick={(e) => {
-              if (!editorUrl) {
-                e.preventDefault();
-                alert("Abre la app desde el Admin de Shopify para disponer de ?shop=xxxx.myshopify.com");
-              }
-            }}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              textDecoration: "none",
-              background: "#111827",
-              color: "#fff",
-              fontWeight: 600,
-              cursor: editorUrl ? "pointer" : "not-allowed",
-              opacity: editorUrl ? 1 : 0.6,
-            }}
-            aria-label={t.openEditor}
-            title={t.openEditor}
-          >
-            {t.openEditor}
-          </a>
-
-          <button
-            onClick={checkStatus}
-            disabled={loading}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              cursor: "pointer",
-              background: "#fff",
-              color: "#111827",
-              fontWeight: 600,
-              opacity: loading ? 0.6 : 1,
-            }}
-            aria-label={t.retry}
-            title={t.retry}
-          >
-            {t.retry}
-          </button>
+    <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5, maxWidth: 980, margin: "0 auto" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 24, marginBottom: 6 }}>{t.title}</h1>
+          <p style={{ marginBottom: 0, color: "#374151" }} dangerouslySetInnerHTML={{ __html: t.intro }} />
         </div>
-      </Section>
+        <a
+          href={editorUrl || "#"}
+          target="_top"
+          rel="noopener"
+          onClick={(e) => {
+            if (!editorUrl) {
+              e.preventDefault();
+              alert("Abre la app desde el Admin de Shopify para disponer de ?shop=xxxx.myshopify.com");
+            }
+          }}
+          style={{
+            display: "inline-block",
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            textDecoration: "none",
+            background: "#111827",
+            color: "#fff",
+            fontWeight: 700,
+          }}
+          aria-label={t.openEditor}
+          title={t.openEditor}
+        >
+          {t.openEditor}
+        </a>
+      </header>
 
-      <Section title={t.statusTitle}>
-        <Card>
-          <div dangerouslySetInnerHTML={{ __html: statusHtml }} />
-          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-            {shop ? `Shop: ${shop}` : "Tip: abre este panel desde el Admin de Shopify para disponer de ?shop=..."}
-          </div>
-        </Card>
-      </Section>
-
-      <Section title={t.whatTitle}>
-        <p style={{ color: "#374151", marginBottom: 10 }} dangerouslySetInnerHTML={{ __html: t.whatIntro }} />
-        <ul style={{ listStyle: "disc", paddingLeft: 20 }}>
-          {t.whatList.map((s, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: s }} />
-          ))}
-        </ul>
-      </Section>
-
-      <Section title={t.advancedTitle}>
-        <ul style={{ listStyle: "disc", paddingLeft: 20 }}>
-          {t.advancedBullets.map((s, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: s }} />
-          ))}
-        </ul>
-      </Section>
-
-      <Section title={t.verifyTitle}>
-        <p dangerouslySetInnerHTML={{ __html: t.verifyText }} />
-      </Section>
-
-      <Section title={t.helpTitle}>
-        <ul style={{ listStyle: "disc", paddingLeft: 20 }}>
-          <li><a href="/support" target="_blank" rel="noreferrer">{t.helpLinks.support}</a></li>
-          <li><a href="/privacy" target="_blank" rel="noreferrer">{t.helpLinks.privacy}</a></li>
-          <li><a href="/terms" target="_blank" rel="noreferrer">{t.helpLinks.terms}</a></li>
-        </ul>
+      <Tabs tabs={tabs} active={active} onChange={setActive} />
+      <Section title="">
+        {renderTab()}
       </Section>
 
       <footer style={{ marginTop: 30, fontSize: 13, color: "#6b7280" }}>

@@ -696,14 +696,7 @@
 </script>
 {%- endif -%}
 
-{% if settings.enable_script %}
-  <script>
-    window.SCHEMA_ADVANCED_SETTINGS = {
-      shop: {{ shop.permanent_domain | json }}
-    };
-  </script>
-  <script src="{{ 'schema-advanced-client.js' | asset_url }}" defer></script>
-{% endif %}
+
 
 
 
