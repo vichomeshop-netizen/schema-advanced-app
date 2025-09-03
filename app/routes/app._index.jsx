@@ -180,17 +180,36 @@ export default function Dashboard() {
   const [state, setState] = useState(t.statusChecking);
   const [loading, setLoading] = useState(false);
 
-  const checkStatus = () => {
+  // ⚙️ Ping endurecido + cancelación segura
+  const checkStatus = async () => {
     setLoading(true);
-    fetch("/api/embed-ping")
-      .then((r) => r.json())
-      .then(() => setState(t.statusOk))
-      .catch(() => setState(t.statusWarnNoSignal))
-      .finally(() => setLoading(false));
+    try {
+      const r = await fetch("/api/embed-ping", { method: "GET" });
+      if (!r.ok) throw new Error(`Ping HTTP ${r.status}`);
+      try { await r.json(); } catch { /* si no hay JSON, no rompemos */ }
+      setState(t.statusOk);
+    } catch (e) {
+      console.error("[ping] failed:", e);
+      setState(t.statusWarnNoSignal);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    checkStatus();
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/embed-ping", { method: "GET" });
+        if (!r.ok) throw new Error(`Ping HTTP ${r.status}`);
+        try { await r.json(); } catch {}
+        if (!cancelled) setState(t.statusOk);
+      } catch (e) {
+        console.error("[ping] failed:", e);
+        if (!cancelled) setState(t.statusWarnNoSignal);
+      }
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -10,15 +10,11 @@ import {
   isRouteErrorResponse,
 } from "@remix-run/react";
 
-// Enlaces globales (CDNs/optimizaciones)
 export const links = () => [
   { rel: "preconnect", href: "https://cdn.shopify.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Si usas alguna hoja de estilos propia, añádela aquí:
-  // { rel: "stylesheet", href: stylesHref },
 ];
 
-// Loader básico (sin tipos TS)
 export async function loader() {
   return { theme: "light" };
 }
@@ -42,29 +38,32 @@ export default function App() {
   );
 }
 
-// Muestra los errores de SSR/cliente dentro de la app (evita el “Application Error” opaco)
 export function ErrorBoundary() {
   const error = useRouteError();
 
-  let title = "Ha ocurrido un error";
-  let message = "Revisa los logs o el stack para más detalles.";
+  let title = "Unexpected Server Error";
   let details = "";
+  let dump = "";
 
   if (isRouteErrorResponse(error)) {
     title = `Error ${error.status} — ${error.statusText}`;
-    try {
-      // Algunos responses tienen JSON; intentamos renderizarlo
-      details = JSON.stringify(error.data, null, 2);
-    } catch (_) {
-      details = String(error.data ?? "");
-    }
+    try { details = typeof error.data === "string" ? error.data : JSON.stringify(error.data, null, 2); }
+    catch { details = String(error.data ?? ""); }
   } else if (error instanceof Error) {
-    title = error.name || "Error";
-    message = error.message || message;
-    details = error.stack || "";
-  } else {
+    title = error.name || title;
+    details = (error.stack || error.message || "").toString();
+    try {
+      const plain = {};
+      Object.getOwnPropertyNames(error).forEach((k) => (plain[k] = error[k]));
+      dump = JSON.stringify(plain, null, 2);
+    } catch {}
+  } else if (error) {
     details = String(error);
+    try { dump = JSON.stringify(error, null, 2); } catch {}
   }
+
+  // Además, log en consola del navegador
+  if (typeof console !== "undefined") console.error("[Remix ErrorBoundary]", error);
 
   return (
     <html lang="es">
@@ -76,28 +75,23 @@ export function ErrorBoundary() {
       </head>
       <body style={{ fontFamily: "system-ui, sans-serif", padding: 16, lineHeight: 1.5 }}>
         <h1 style={{ marginBottom: 8 }}>{title}</h1>
-        <p style={{ color: "#6b7280", marginBottom: 16 }}>{message}</p>
 
         {details ? (
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              background: "#0f172a",
-              color: "#e2e8f0",
-              padding: 12,
-              borderRadius: 8,
-              overflow: "auto",
-              fontSize: 13,
-            }}
-          >
+          <pre style={{ whiteSpace: "pre-wrap", background: "#0f172a", color: "#e2e8f0", padding: 12, borderRadius: 8, overflow: "auto", fontSize: 13 }}>
             {details}
           </pre>
-        ) : null}
+        ) : (
+          <p>Intenta volver a la <a href="/">página principal</a> o repetir la acción.</p>
+        )}
 
-        <p style={{ marginTop: 16 }}>
-          Intenta volver a la <a href="/">página principal</a> o repetir la acción. Si persiste,
-          revisa los <strong>logs de Vercel</strong> / consola local.
-        </p>
+        {dump ? (
+          <>
+            <h2 style={{ marginTop: 16, fontSize: 16 }}>Error object</h2>
+            <pre style={{ whiteSpace: "pre-wrap", background: "#111827", color: "#e5e7eb", padding: 12, borderRadius: 8, overflow: "auto", fontSize: 13 }}>
+              {dump}
+            </pre>
+          </>
+        ) : null}
 
         <Scripts />
       </body>
