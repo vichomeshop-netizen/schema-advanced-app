@@ -1,8 +1,8 @@
 // app/routes/app._index.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "@remix-run/react";
 
-// === TUS STRINGS ORIGINALES ===
+// === STRINGS (EN/ES/PT) ===
 const STRINGS = {
   en: {
     title: "Schema Advanced — Guide",
@@ -54,11 +54,6 @@ const STRINGS = {
       'Validate with <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Google Rich Results Test</a> or <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Schema.org Validator</a>.',
     helpTitle: "Help & Legal",
     helpLinks: { support: "Support", privacy: "Privacy Policy", terms: "Terms of Service" },
-    manualTitle: "Manual override",
-    manualInfo:
-      'If you already see <code>data-sae="1"</code> in your storefront source, you can mark the embed as Active here.',
-    manualSet: "Mark as Active (manual)",
-    manualClear: "Back to auto check",
   },
   es: {
     title: "Schema Advanced — Guía",
@@ -110,11 +105,6 @@ const STRINGS = {
       'Valida con la <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Prueba de resultados enriquecidos de Google</a> o el <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">validador de Schema.org</a>.',
     helpTitle: "Ayuda y legal",
     helpLinks: { support: "Soporte", privacy: "Política de privacidad", terms: "Términos del servicio" },
-    manualTitle: "Anulación manual",
-    manualInfo:
-      'Si ya ves <code>data-sae="1"</code> en el código fuente del storefront, puedes marcar el embed como Activo aquí.',
-    manualSet: "Marcar como Activo (manual)",
-    manualClear: "Volver a auto-chequeo",
   },
   pt: {
     title: "Schema Advanced — Guia",
@@ -166,11 +156,6 @@ const STRINGS = {
       'Valide com o <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Teste de resultados enriquecidos do Google</a> ou o <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">validador do Schema.org</a>.',
     helpTitle: "Ajuda & jurídico",
     helpLinks: { support: "Suporte", privacy: "Política de privacidade", terms: "Termos de serviço" },
-    manualTitle: "Substituição manual",
-    manualInfo:
-      'Se você já vê <code>data-sae="1"</code> no código-fonte do storefront, pode marcar como Ativo aqui.',
-    manualSet: "Marcar como Ativo (manual)",
-    manualClear: "Voltar ao auto-check",
   },
 };
 
@@ -198,92 +183,47 @@ export default function Dashboard() {
   const t = useI18n();
   const [sp] = useSearchParams();
 
-  // shop con fallback (si abres el panel fuera del Admin)
+  // shop para construir la URL del editor (no se usa para la detección)
   const shop =
     sp.get("shop") ||
     (typeof window !== "undefined" && window.Shopify && window.Shopify.shop) ||
     "";
 
-  // Clave para persistir anulación manual por tienda
-  const storageKey = useMemo(
-    () => (shop ? `saeManualActive:${shop}` : "saeManualActive"),
-    [shop]
-  );
-
   const [statusHtml, setStatusHtml] = useState(t.statusChecking);
   const [loading, setLoading] = useState(false);
-  const [manualActive, setManualActive] = useState(false);
 
-  // Carga estado manual desde localStorage
-  useEffect(() => {
+  async function checkStatus() {
+    setLoading(true);
+    setStatusHtml(t.statusChecking);
     try {
-      const v = localStorage.getItem(storageKey);
-      const isOn = v === "1";
-      setManualActive(isOn);
-      setStatusHtml(isOn ? t.statusOk : t.statusChecking);
+      // Detección fiable via Admin API (requiere scope read_themes en tu backend)
+      const r = await fetch(`/api/sae-admin-detect`, {
+        headers: { "cache-control": "no-cache" },
+      });
+      const j = await r.json().catch(() => ({}));
+      setStatusHtml(j && j.active ? t.statusOk : t.statusWarn);
     } catch {
-      // ignore
+      setStatusHtml(t.statusWarn);
+    } finally {
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }
 
-  // Mantener textos cuando cambie idioma
   useEffect(() => {
-    setStatusHtml((prev) => {
-      if (manualActive) return t.statusOk;
-      if (
-        prev === STRINGS.en.statusChecking ||
-        prev === STRINGS.es.statusChecking ||
-        prev === STRINGS.pt.statusChecking
-      ) return t.statusChecking;
-      if (
-        prev === STRINGS.en.statusOk ||
-        prev === STRINGS.es.statusOk ||
-        prev === STRINGS.pt.statusOk
-      ) return t.statusOk;
-      if (
-        prev === STRINGS.en.statusWarn ||
-        prev === STRINGS.es.statusWarn ||
-        prev === STRINGS.pt.statusWarn
-      ) return t.statusWarn;
+    checkStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mantener textos si cambia idioma
+  useEffect(() => {
+    setStatusHtml(prev => {
+      if (prev === STRINGS.en.statusChecking || prev === STRINGS.es.statusChecking || prev === STRINGS.pt.statusChecking) return t.statusChecking;
+      if (prev === STRINGS.en.statusOk || prev === STRINGS.es.statusOk || prev === STRINGS.pt.statusOk) return t.statusOk;
+      if (prev === STRINGS.en.statusWarn || prev === STRINGS.es.statusWarn || prev === STRINGS.pt.statusWarn) return t.statusWarn;
       return prev;
     });
-  }, [t, manualActive]);
+  }, [t]);
 
-  // Tu detector actual (lo dejamos por si quieres usarlo)
-  async function checkStatus() {
-  setLoading(true);
-  try {
-    const r = await fetch(`/api/sae-admin-detect`, { headers: { "cache-control": "no-cache" } });
-    const j = await r.json();
-    setStatusHtml(j.active ? t.statusOk : t.statusWarn);
-  } catch {
-    setStatusHtml(t.statusWarn);
-  } finally {
-    setLoading(false);
-  }
-}
-
-
-  useEffect(() => {
-    checkStatusAuto();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shop]);
-
-  // Anulación manual
-  const setManual = () => {
-    try { localStorage.setItem(storageKey, "1"); } catch {}
-    setManualActive(true);
-    setStatusHtml(t.statusOk);
-  };
-  const clearManual = () => {
-    try { localStorage.removeItem(storageKey); } catch {}
-    setManualActive(false);
-    setStatusHtml(t.statusChecking);
-    checkStatusAuto();
-  };
-
-  // URL editor de temas — abrirá en la pestaña superior (funciona en Admin)
   const editorUrl = shop ? `https://${shop}/admin/themes/current/editor?context=apps` : "";
 
   return (
@@ -299,12 +239,17 @@ export default function Dashboard() {
         </ol>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Enlace con aspecto de botón que navega en top */}
+          {/* Enlace seguro que abre el editor en la pestaña superior (fuera del iframe) */}
           <a
             href={editorUrl || "#"}
             target="_top"
             rel="noopener"
-            onClick={(e) => { if (!editorUrl) { e.preventDefault(); alert("Abre la app desde el Admin para disponer de ?shop=xxxx.myshopify.com"); } }}
+            onClick={(e) => {
+              if (!editorUrl) {
+                e.preventDefault();
+                alert("Abre la app desde el Admin de Shopify para disponer de ?shop=xxxx.myshopify.com");
+              }
+            }}
             style={{
               padding: "8px 12px",
               borderRadius: 6,
@@ -314,7 +259,7 @@ export default function Dashboard() {
               color: "#fff",
               fontWeight: 600,
               cursor: editorUrl ? "pointer" : "not-allowed",
-              opacity: editorUrl ? 1 : 0.6
+              opacity: editorUrl ? 1 : 0.6,
             }}
             aria-label={t.openEditor}
             title={t.openEditor}
@@ -323,7 +268,7 @@ export default function Dashboard() {
           </a>
 
           <button
-            onClick={checkStatusAuto}
+            onClick={checkStatus}
             disabled={loading}
             style={{
               padding: "8px 12px",
@@ -350,44 +295,6 @@ export default function Dashboard() {
             {shop ? `Shop: ${shop}` : "Tip: abre este panel desde el Admin de Shopify para disponer de ?shop=..."}
           </div>
         </Card>
-      </Section>
-
-      {/* Bloque de anulación manual: cero servidor, 2 clics */}
-      <Section title={t.manualTitle}>
-        <p style={{ color: "#374151", marginBottom: 10 }} dangerouslySetInnerHTML={{ __html: t.manualInfo }} />
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {!manualActive ? (
-            <button
-              onClick={setManual}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid #10b981",
-                background: "#10b981",
-                color: "#fff",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t.manualSet}
-            </button>
-          ) : (
-            <button
-              onClick={clearManual}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                background: "#fff",
-                color: "#111827",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t.manualClear}
-            </button>
-          )}
-        </div>
       </Section>
 
       <Section title={t.whatTitle}>
