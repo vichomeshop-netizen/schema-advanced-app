@@ -1,4 +1,4 @@
-// app/routes/api.sae1-check.js
+// app/routes/api.sae1.js
 import { json } from "@remix-run/node";
 
 const UA =
@@ -7,12 +7,15 @@ const DETECT_RE = /data-sae\s*=\s*["']?1["']?/i;
 
 export async function loader({ request }) {
   const { searchParams } = new URL(request.url);
-  const url = searchParams.get("url");
-  const debug = searchParams.get("debug") === "1";
+  const shop = (searchParams.get("shop") || "").trim();
 
-  if (!url || !/^https?:\/\//i.test(url)) {
-    return json({ ok: false, error: "invalid_url" }, { status: 400 });
+  if (!shop || !/^[a-z0-9-]+\.myshopify\.com$/i.test(shop)) {
+    return json({ active: false, error: "missing_or_invalid_shop" }, { status: 400 });
   }
+
+  // Usa la home por defecto. Si tu embed solo carga en producto/colección,
+  // cambia a una URL que *sepas* que incluye el embed.
+  const url = `https://${shop}/?sae_probe=1`;
 
   try {
     const res = await fetch(url, {
@@ -30,23 +33,18 @@ export async function loader({ request }) {
 
     const text = await res.text();
     const found = DETECT_RE.test(text);
-    const payload = {
-      ok: true,
-      found,
-      status: res.status,
-      finalUrl: res.url,
-    };
-    if (debug) {
-      payload.length = text.length;
-      payload.sample = text.slice(0, 1200);
-    }
-    return json(payload, {
-      headers: { "Cache-Control": "no-store, max-age=0" },
-    });
+    return json(
+      {
+        active: !!found,
+        status: res.status,
+        finalUrl: res.url,
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (e) {
     return json(
-      { ok: false, error: e?.message || String(e) },
-      { status: 500 }
+      { active: false, error: e?.message || String(e) },
+      { status: 200 }
     );
   }
 }
