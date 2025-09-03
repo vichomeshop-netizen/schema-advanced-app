@@ -1,6 +1,7 @@
 import { redirect } from "@remix-run/node";
-import { shopify } from "~/lib/shopify.server"; // <- relativo y con .js
-import { db } from "../lib/db.server.js";           // <- relativo y con .js
+import { shopify } from "~/lib/shopify.server";
+import { db } from "~/lib/db.server";              // usa alias "~" para evitar duplicados
+import { saeTokenCookie } from "~/lib/sae-cookie.server";
 
 export async function loader({ request, params }) {
   const tail = (params["*"] || "").toLowerCase();
@@ -11,11 +12,18 @@ export async function loader({ request, params }) {
       rawRequest: request,
     });
 
+    // Guarda en memoria
     await db.upsertShop({ shop, accessToken: session.accessToken, scope });
+
+    // + Emite cookie firmada (fallback si caes en otra instancia)
+    const cookieVal = JSON.stringify({ shop, accessToken: session.accessToken, scope });
+    const setCookie = await saeTokenCookie.serialize(cookieVal);
 
     const q = new URL(request.url).searchParams;
     const host = q.get("host");
-    return redirect(`/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`);
+    return redirect(`/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`, {
+      headers: { "Set-Cookie": setCookie },
+    });
   }
 
   const url = new URL(request.url);
