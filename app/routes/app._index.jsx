@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "@remix-run/react";
 
-// Traducciones
+// Traducciones (tus STRINGS originales)
 const STRINGS = {
   en: {
     title: "Schema Advanced — Guide",
@@ -159,7 +159,7 @@ const STRINGS = {
   },
 };
 
-// Hook para idioma
+// Hook idioma
 function useI18n() {
   const { lang: ctxLang } = useOutletContext() || {};
   const [sp] = useSearchParams();
@@ -182,42 +182,108 @@ const Section = ({ title, children }) => (
 export default function Dashboard() {
   const t = useI18n();
   const [sp] = useSearchParams();
-  const shop = sp.get("shop") || ""; // Shopify siempre pasa xxxx.myshopify.com
-  const [state, setState] = useState(t.statusChecking);
+
+  // 1) Resuelve shop con fallback (si abres el panel fuera de Shopify)
+  const shop =
+    sp.get("shop") ||
+    (typeof window !== "undefined" && window.Shopify && window.Shopify.shop) ||
+    "";
+
+  // 2) URL por defecto a comprobar: el storefront público de myshopify
+  const defaultUrl = shop ? `https://${shop}/` : "";
+  const [testUrl, setTestUrl] = useState(defaultUrl);
+
+  // Estado visual
+  const [statusHtml, setStatusHtml] = useState(t.statusChecking);
   const [loading, setLoading] = useState(false);
 
-  async function checkStatus() {
-    setLoading(true);
+  // Chequeo primario por API interna: /api/sae1?shop=...
+  async function checkPrimaryByShop() {
+    if (!shop) return false;
     try {
-      if (!shop) {
-        setState(t.statusWarn);
-        return;
-      }
       const r = await fetch(`/api/sae1?shop=${encodeURIComponent(shop)}`, { method: "GET" });
       const j = await r.json().catch(() => ({}));
-      setState(j && j.active ? t.statusOk : t.statusWarn);
+      if (j && j.active) {
+        setStatusHtml(t.statusOk);
+        return true;
+      }
     } catch {
-      setState(t.statusWarn);
+      // noop → caerá al fallback
+    }
+    return false;
+  }
+
+  // Chequeo por HTML: llama a /api/sae1-check?url=...
+  async function checkByHtml(urlToCheck) {
+    if (!urlToCheck) {
+      setStatusHtml(t.statusWarn);
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/sae1-check?url=${encodeURIComponent(urlToCheck)}`);
+      const j = await r.json().catch(() => ({}));
+      if (j && j.ok && j.found) setStatusHtml(t.statusOk);
+      else setStatusHtml(t.statusWarn);
+    } catch {
+      setStatusHtml(t.statusWarn);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    checkStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shop]);
-
-  const openThemeEditor = () => {
-    if (!shop) return;
-    const url = `https://${shop}/admin/themes/current/editor?context=apps`;
-    if (typeof window !== "undefined") {
-      window.top.location.href = url;
+  // Orquestador del check: primero /api/sae1, si falla → /api/sae1-check
+  async function checkStatus() {
+    setLoading(true);
+    setStatusHtml(t.statusChecking);
+    const ok = await checkPrimaryByShop();
+    if (!ok) {
+      await checkByHtml(testUrl || defaultUrl);
+    } else {
+      setLoading(false);
     }
+  }
+
+  // Primer intento automático si tenemos shop → https://{shop}/
+  useEffect(() => {
+    setStatusHtml(t.statusChecking);
+    if (defaultUrl) {
+      setTestUrl(defaultUrl);
+      checkStatus();
+    } else {
+      setStatusHtml(t.statusWarn);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultUrl]);
+
+  // Si cambia el idioma, refrescamos el texto del estado (sin repetir requests)
+  useEffect(() => {
+    setStatusHtml((prev) => {
+      if (prev === STRINGS.en.statusChecking || prev === STRINGS.es.statusChecking || prev === STRINGS.pt.statusChecking) {
+        return t.statusChecking;
+      }
+      if (prev === STRINGS.en.statusOk || prev === STRINGS.es.statusOk || prev === STRINGS.pt.statusOk) {
+        return t.statusOk;
+      }
+      if (prev === STRINGS.en.statusWarn || prev === STRINGS.es.statusWarn || prev === STRINGS.pt.statusWarn) {
+        return t.statusWarn;
+      }
+      return prev;
+    });
+  }, [t]);
+
+  // Botón editor de temas: siempre clicable; si falta shop, avisa
+  const openThemeEditor = () => {
+    if (!shop) {
+      alert("Abre la app desde el Admin de Shopify para disponer del parámetro ?shop=xxxx.myshopify.com");
+      return;
+    }
+    const url = `https://${shop}/admin/themes/current/editor?context=apps`;
+    window.open(url, "_blank", "noopener");
   };
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5, maxWidth: 800, margin: "0 auto" }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5, maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ fontSize: 24, marginBottom: 12 }}>{t.title}</h1>
       <p style={{ marginBottom: 18, color: "#374151" }} dangerouslySetInnerHTML={{ __html: t.intro }} />
 
@@ -227,31 +293,44 @@ export default function Dashboard() {
             <li key={i} dangerouslySetInnerHTML={{ __html: s }} />
           ))}
         </ol>
-        <div style={{ display: "flex", gap: 12 }}>
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <button
             onClick={openThemeEditor}
             style={{
-              marginTop: 6,
               padding: "8px 12px",
               borderRadius: 6,
               border: "1px solid #d1d5db",
-              cursor: shop ? "pointer" : "not-allowed",
-              background: shop ? "#111827" : "#f3f4f6",
-              color: shop ? "#fff" : "#9ca3af",
+              cursor: "pointer",
+              background: "#111827",
+              color: "#fff",
               fontWeight: 600,
             }}
             aria-label={t.openEditor}
             title={t.openEditor}
-            disabled={!shop}
           >
             {t.openEditor}
           </button>
+
+          {/* Campo URL de storefront a comprobar (fallback/manual) */}
+          <input
+            type="url"
+            value={testUrl}
+            onChange={(e) => setTestUrl(e.target.value)}
+            placeholder={defaultUrl || "https://your-store.myshopify.com/"}
+            style={{
+              minWidth: 320,
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+            }}
+            aria-label="Storefront URL to check"
+          />
 
           <button
             onClick={checkStatus}
             disabled={loading}
             style={{
-              marginTop: 6,
               padding: "8px 12px",
               borderRadius: 6,
               border: "1px solid #d1d5db",
@@ -271,7 +350,10 @@ export default function Dashboard() {
 
       <Section title={t.statusTitle}>
         <Card>
-          <div dangerouslySetInnerHTML={{ __html: state }} />
+          <div dangerouslySetInnerHTML={{ __html: statusHtml }} />
+          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+            {defaultUrl ? `Checked: ${testUrl || defaultUrl}` : "Tip: introduce la URL pública de tu tienda y pulsa “Reintentar”."}
+          </div>
         </Card>
       </Section>
 
@@ -298,9 +380,21 @@ export default function Dashboard() {
 
       <Section title={t.helpTitle}>
         <ul style={{ listStyle: "disc", paddingLeft: 20 }}>
-          <li><a href="/support" target="_blank" rel="noreferrer">{t.helpLinks.support}</a></li>
-          <li><a href="/privacy" target="_blank" rel="noreferrer">{t.helpLinks.privacy}</a></li>
-          <li><a href="/terms" target="_blank" rel="noreferrer">{t.helpLinks.terms}</a></li>
+          <li>
+            <a href="/support" target="_blank" rel="noreferrer">
+              {t.helpLinks.support}
+            </a>
+          </li>
+          <li>
+            <a href="/privacy" target="_blank" rel="noreferrer">
+              {t.helpLinks.privacy}
+            </a>
+          </li>
+          <li>
+            <a href="/terms" target="_blank" rel="noreferrer">
+              {t.helpLinks.terms}
+            </a>
+          </li>
         </ul>
       </Section>
 
