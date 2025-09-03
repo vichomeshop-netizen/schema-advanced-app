@@ -1,5 +1,5 @@
 // app/routes/app.jsx
-import { Outlet, NavLink, useSearchParams } from "@remix-run/react";
+import { Outlet, NavLink, useSearchParams, useLocation } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 /**
@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
  *   - Construye la URL del editor en ambos casos
  *   - Navega en _top mediante <a target="_top"> (evita bloqueos por iframe)
  *   - Fallbacks: ?shop=, window.Shopify.shop, y ruta relativa /admin
- * - Enlaces Support / Terms / Privacy en la sidebar.
+ * - Conserva SIEMPRE el query string (?host, ?shop, ?lang) al navegar por la app
  */
 
 function decodeHostB64Url(hostParam) {
@@ -58,15 +58,19 @@ function buildThemeEditorUrl() {
 
 export default function AppLayout() {
   const [sp] = useSearchParams();
+  const { search } = useLocation(); // <- conservar ?host, ?shop, ?lang entre pestañas
   const initial = sp.get("lang") || "es";
   const [lang, setLang] = useState(["es", "en", "pt"].includes(initial) ? initial : "es");
 
-  // Mantener ?lang= en la URL cuando el usuario cambie el idioma
+  // Mantener ?lang= en la URL sin perder el resto de params (host, shop, etc.)
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     q.set("lang", lang);
     window.history.replaceState({}, "", `?${q.toString()}`);
   }, [lang]);
+
+  // Helper para NavLink que conserva el search actual
+  const toWithSearch = (pathname) => ({ pathname, search });
 
   function navBtn(isActive) {
     return {
@@ -118,7 +122,7 @@ export default function AppLayout() {
         <h2 style={{ fontSize: 16, margin: "6px 0 10px" }}>Schema Advanced</h2>
 
         <label style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
-          {lang === "en" ? "Language" : "Idioma"}
+          {lang === "en" ? "Language" : lang === "pt" ? "Idioma" : "Idioma"}
           <select
             value={lang}
             onChange={(e) => setLang(e.target.value)}
@@ -138,33 +142,41 @@ export default function AppLayout() {
         </label>
 
         <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
-          {/* Nueva pestaña: Overview */}
-          <NavLink to="overview" style={({ isActive }) => navBtn(isActive)}>
+          {/* Overview */}
+          <NavLink to={toWithSearch("overview")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
           </NavLink>
 
-          <NavLink end to="." style={({ isActive }) => navBtn(isActive)}>
+          {/* Raíz (Panel) */}
+          <NavLink end to={toWithSearch(".")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Painel" : lang === "en" ? "Panel" : "Panel"}
           </NavLink>
-          <NavLink to="products" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("products")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Produtos" : lang === "en" ? "Products" : "Productos"}
           </NavLink>
-          <NavLink to="collections" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("collections")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Coleções" : lang === "en" ? "Collections" : "Colecciones"}
           </NavLink>
-          <NavLink to="pages" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("pages")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
           </NavLink>
-          <NavLink to="blog" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("blog")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
           </NavLink>
-          <NavLink to="global" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("global")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Global" : "Global"}
           </NavLink>
-          <NavLink to="suppressor" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("suppressor")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Supressor JSON-LD" : lang === "en" ? "JSON-LD Suppressor" : "Supresor JSON-LD"}
           </NavLink>
-          <NavLink to="settings" style={({ isActive }) => navBtn(isActive)}>
+
+          <NavLink to={toWithSearch("settings")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Configurações" : lang === "en" ? "Settings" : "Ajustes"}
           </NavLink>
         </nav>
@@ -212,4 +224,5 @@ export default function AppLayout() {
     </div>
   );
 }
+
 
