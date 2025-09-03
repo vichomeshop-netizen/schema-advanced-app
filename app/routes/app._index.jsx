@@ -1,5 +1,5 @@
 // app/routes/app._index.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "@remix-run/react";
 
 const STRINGS = {
@@ -172,17 +172,14 @@ function useI18n() {
   const [sp] = useSearchParams();
   const q = sp.get("lang");
   const lang = (q && ["es", "en", "pt"].includes(q)) ? q : (ctxLang || "en");
-  return { t: STRINGS[lang] || STRINGS.en, lang };
+  return STRINGS[lang] || STRINGS.en;
 }
 
 export default function Dashboard() {
-  const { t, lang } = useI18n();
+  const t = useI18n();
   const [state, setState] = useState(t.statusChecking);
   const [loading, setLoading] = useState(false);
 
-  const withLang = (path) => `${path}${path.includes("?") ? "&" : "?"}lang=${lang}`;
-
-  // Ping de estado al backend
   const checkStatus = () => {
     setLoading(true);
     fetch("/api/embed-ping")
@@ -198,14 +195,15 @@ export default function Dashboard() {
   }, []);
 
   const openThemeEditor = () => {
-    window.top.location.href = "/admin/themes/current/editor?context=apps";
+    if (typeof window !== "undefined") {
+      window.top.location.href = "/admin/themes/current/editor?context=apps";
+    }
   };
 
   // UI helpers
   const Card = ({ children }) => (
     <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff" }}>{children}</div>
   );
-
   const Section = ({ title, children, emoji }) => (
     <section style={{ marginBottom: 28 }}>
       <h2 style={{ fontSize: 18, marginBottom: 10 }}>{emoji ? `${emoji} ` : ""}{title}</h2>
@@ -290,9 +288,9 @@ export default function Dashboard() {
 
       <Section title={t.helpTitle} emoji="🧭">
         <ul style={{ listStyle: "disc", paddingLeft: 20 }}>
-          <li><a href={withLang("/support")} target="_blank" rel="noreferrer">{t.helpLinks.support}</a></li>
-          <li><a href={withLang("/privacy")} target="_blank" rel="noreferrer">{t.helpLinks.privacy}</a></li>
-          <li><a href={withLang("/terms")} target="_blank" rel="noreferrer">{t.helpLinks.terms}</a></li>
+          <li><a href="/support" target="_blank" rel="noreferrer">{t.helpLinks.support}</a></li>
+          <li><a href="/privacy" target="_blank" rel="noreferrer">{t.helpLinks.privacy}</a></li>
+          <li><a href="/terms" target="_blank" rel="noreferrer">{t.helpLinks.terms}</a></li>
         </ul>
       </Section>
 
