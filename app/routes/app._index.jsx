@@ -251,27 +251,19 @@ export default function Dashboard() {
   }, [t, manualActive]);
 
   // Tu detector actual (lo dejamos por si quieres usarlo)
-  async function checkStatusAuto() {
-    if (manualActive) {
-      setStatusHtml(t.statusOk);
-      return;
-    }
-    setLoading(true);
-    setStatusHtml(t.statusChecking);
-    try {
-      if (!shop) {
-        setStatusHtml(t.statusWarn);
-        return;
-      }
-      const r = await fetch(`/api/sae1?shop=${encodeURIComponent(shop)}`, { method: "GET" });
-      const j = await r.json().catch(() => ({}));
-      setStatusHtml(j && j.active ? t.statusOk : t.statusWarn);
-    } catch {
-      setStatusHtml(t.statusWarn);
-    } finally {
-      setLoading(false);
-    }
+  async function checkStatus() {
+  setLoading(true);
+  try {
+    const r = await fetch(`/api/sae-admin-detect`, { headers: { "cache-control": "no-cache" } });
+    const j = await r.json();
+    setStatusHtml(j.active ? t.statusOk : t.statusWarn);
+  } catch {
+    setStatusHtml(t.statusWarn);
+  } finally {
+    setLoading(false);
   }
+}
+
 
   useEffect(() => {
     checkStatusAuto();
