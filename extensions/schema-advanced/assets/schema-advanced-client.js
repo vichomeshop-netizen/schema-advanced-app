@@ -1,34 +1,19 @@
+// schema-advanced-client.js — ultra simple
 (function () {
-  // Marca el <html> para verificar que el embed cargó
-  try { document.documentElement.setAttribute('data-schema-advanced', 'on'); } catch (_) {}
+  // ¿Existe algún <script type="application/ld+json" data-sae="1"> en el DOM?
+  var ok = !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
 
-  // ¿Está tu JSON-LD propio?
-  function hasSAE() {
-    return !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
+  // Marca global por si abres DevTools en el storefront
+  window.SAE1_ACTIVE = ok;
+
+  // Si nos han pasado el shop desde el Liquid, lo usamos en el ping
+  var cfg = window.SCHEMA_ADVANCED_SETTINGS || {};
+  var shop = cfg.shop || (window.Shopify && Shopify.shop) || "";
+
+  // Ping MUY simple (GET) a tu backend para que el panel pueda leer el estado
+  // No usamos fetch para evitar CORS: una imagen invisible basta.
+  if (shop) {
+    var img = new Image(1, 1);
+    img.src = "/api/sae1?shop=" + encodeURIComponent(shop) + "&ok=" + (ok ? "1" : "0") + "&t=" + Date.now();
   }
-
-  if (hasSAE()) {
-    return; // detectado ya
-  }
-
-  // Observa por si tu tema/app lo inyecta después
-  var found = false;
-  var obs = new MutationObserver(function (muts) {
-    for (var i = 0; i < muts.length; i++) {
-      var list = muts[i].addedNodes || [];
-      for (var j = 0; j < list.length; j++) {
-        var n = list[j];
-        if (n.nodeType === 1 && n.matches && n.matches('script[type="application/ld+json"][data-sae="1"]')) {
-          found = true;
-          obs.disconnect();
-          return;
-        }
-      }
-    }
-  });
-  try { obs.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
-
-  // Corta la observación a los 4s si no aparece nada
-  setTimeout(function () { if (!found) try { obs.disconnect(); } catch (_) {} }, 4000);
 })();
-

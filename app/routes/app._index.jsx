@@ -18,15 +18,16 @@ const STRINGS = {
     ],
     statusTitle: "Status",
     statusChecking: "Checking…",
-    statusOk: "Active — JSON-LD detected",
-    statusWarn: "No confirmation received from the storefront",
+    statusOk: "Active — app embed detected on the storefront",
+    statusWarn: "Not detected — enable the app embed in your theme and reload your storefront",
     retry: "Retry check",
+    openEditor: "Open theme editor",
     whatTitle: "What does Schema Advanced add?",
     whatIntro:
       "Schema Advanced provides a complete set of JSON-LD entities designed for SEO rich results:",
     whatList: [
       "<strong>Organization</strong>: business name, legal name, logo, image, contact info.",
-      "<strong>WebSite</strong>: site search (`SearchAction`).",
+      "<strong>WebSite</strong>: site search (<code>SearchAction</code>).",
       "<strong>BreadcrumbList</strong>: hierarchical navigation (Home → Collection → Product).",
       "<strong>CollectionPage</strong>: metadata for category pages.",
       "<strong>FAQPage</strong>: FAQs extracted from metafields or metaobjects.",
@@ -39,13 +40,13 @@ const STRINGS = {
     ],
     advancedTitle: "Technical details (for advanced users)",
     advancedBullets: [
-      "<strong>@id anchors</strong>: consistent identifiers (`#org`, `#website`, `#product`).",
+      "<strong>@id anchors</strong>: consistent identifiers (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
       "<strong>sameAs</strong>: normalized external URLs (social, directories).",
-      "<strong>isPartOf</strong>: collections reference the parent WebSite entity.",
+      "<strong>isPartOf</strong>: collections reference the parent <code>WebSite</code> entity.",
       "<strong>inLanguage</strong>: automatically detects ES, EN, PT; can be forced via settings.",
-      "<strong>OfferShippingDetails</strong>: structured handling/transit times and optional shipping rate.",
+      "<strong>OfferShippingDetails</strong>: structured handling/transit times and optional <code>shippingRate</code>.",
       "<strong>MerchantReturnPolicy</strong>: days, method and fees configurable.",
-      "<strong>Suppressor</strong>: removes overlapping theme JSON-LD, keeping only scripts with `data-sae`.",
+      "<strong>Suppressor</strong>: removes overlapping theme JSON-LD, keeping only scripts with <code>data-sae</code>.",
       "<strong>ImageObject</strong>: logo and primary images are tagged for Google Image search.",
     ],
     verifyTitle: "How to verify",
@@ -68,15 +69,16 @@ const STRINGS = {
     ],
     statusTitle: "Estado",
     statusChecking: "Comprobando…",
-    statusOk: "Activo — JSON-LD detectado",
-    statusWarn: "No se recibió confirmación del storefront",
+    statusOk: "Activo — app embed detectado en el storefront",
+    statusWarn: "No detectado — activa el app embed en tu tema y recarga el storefront",
     retry: "Reintentar",
+    openEditor: "Abrir editor de temas",
     whatTitle: "¿Qué añade Schema Advanced?",
     whatIntro:
       "Schema Advanced emite un conjunto completo de entidades JSON-LD diseñadas para resultados enriquecidos:",
     whatList: [
       "<strong>Organization</strong>: nombre, razón social, logo, imagen, contacto.",
-      "<strong>WebSite</strong>: buscador interno (`SearchAction`).",
+      "<strong>WebSite</strong>: buscador interno (<code>SearchAction</code>).",
       "<strong>BreadcrumbList</strong>: navegación jerárquica (Inicio → Colección → Producto).",
       "<strong>CollectionPage</strong>: metadatos para páginas de colección.",
       "<strong>FAQPage</strong>: FAQs desde metafields o metaobjetos.",
@@ -89,13 +91,13 @@ const STRINGS = {
     ],
     advancedTitle: "Detalles técnicos (para avanzados)",
     advancedBullets: [
-      "<strong>@id anchors</strong>: identificadores consistentes (`#org`, `#website`, `#product`).",
+      "<strong>@id anchors</strong>: identificadores consistentes (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
       "<strong>sameAs</strong>: URLs externas normalizadas (redes, directorios).",
-      "<strong>isPartOf</strong>: colecciones referencian al WebSite padre.",
+      "<strong>isPartOf</strong>: las colecciones referencian la entidad <code>WebSite</code> padre.",
       "<strong>inLanguage</strong>: detecta ES, EN, PT automáticamente; configurable en ajustes.",
-      "<strong>OfferShippingDetails</strong>: tiempos de gestión y tránsito estructurados, tarifa opcional.",
+      "<strong>OfferShippingDetails</strong>: tiempos de gestión y tránsito estructurados; <code>shippingRate</code> opcional.",
       "<strong>MerchantReturnPolicy</strong>: días, método y tasas configurables.",
-      "<strong>Supresor</strong>: elimina JSON-LD del tema duplicado, mantiene los scripts con `data-sae`.",
+      "<strong>Supresor</strong>: elimina JSON-LD duplicado del tema, mantiene scripts con <code>data-sae</code>.",
       "<strong>ImageObject</strong>: logo e imágenes principales etiquetadas para Google Imágenes.",
     ],
     verifyTitle: "Cómo verificar",
@@ -118,15 +120,16 @@ const STRINGS = {
     ],
     statusTitle: "Estado",
     statusChecking: "Verificando…",
-    statusOk: "Ativo — JSON-LD detectado",
-    statusWarn: "Nenhuma confirmação recebida do storefront",
+    statusOk: "Ativo — app embed detectado no storefront",
+    statusWarn: "Não detectado — ative o app embed no tema e recarregue o storefront",
     retry: "Repetir",
+    openEditor: "Abrir editor do tema",
     whatTitle: "O que o Schema Advanced adiciona?",
     whatIntro:
       "O Schema Advanced emite um conjunto completo de entidades JSON-LD para rich results:",
     whatList: [
       "<strong>Organization</strong>: nome, razão social, logo, imagem, contato.",
-      "<strong>WebSite</strong>: busca interna (`SearchAction`).",
+      "<strong>WebSite</strong>: busca interna (<code>SearchAction</code>).",
       "<strong>BreadcrumbList</strong>: navegação hierárquica (Início → Coleção → Produto).",
       "<strong>CollectionPage</strong>: metadados para páginas de coleção.",
       "<strong>FAQPage</strong>: FAQs de metafields ou metaobjects.",
@@ -139,19 +142,19 @@ const STRINGS = {
     ],
     advancedTitle: "Detalhes técnicos (para avançados)",
     advancedBullets: [
-      "<strong>@id anchors</strong>: identificadores consistentes (`#org`, `#website`, `#product`).",
-      "<strong>sameAs</strong>: URLs externas normalizadas (redes, diretórios).",
-      "<strong>isPartOf</strong>: coleções referenciam o WebSite pai.",
-      "<strong>inLanguage</strong>: detecta PT, EN, ES automaticamente; configurável em ajustes.",
-      "<strong>OfferShippingDetails</strong>: tempos de manuseio/transporte estruturados, tarifa opcional.",
+      "<strong>@id anchors</strong>: identificadores consistentes (<code>#org</code>, <code>#website</code>, <code>#product</code>).",
+      "<strong>sameAs</strong>: URLs externas normalizadas (redes/diretórios).",
+      "<strong>isPartOf</strong>: coleções referenciam a entidade <code>WebSite</code> pai.",
+      "<strong>inLanguage</strong>: PT/EN/ES detectado automaticamente; configurável em ajustes.",
+      "<strong>OfferShippingDetails</strong>: tempos de manuseio/transporte estruturados; <code>shippingRate</code> opcional.",
       "<strong>MerchantReturnPolicy</strong>: dias, método e taxas configuráveis.",
-      "<strong>Supressor</strong>: remove JSON-LD duplicado do tema, mantém scripts com `data-sae`.",
+      "<strong>Supressor</strong>: remove JSON-LD duplicado do tema, mantém scripts com <code>data-sae</code>.",
       "<strong>ImageObject</strong>: logo e imagens principais para Google Imagens.",
     ],
     verifyTitle: "Como verificar",
     verifyText:
       'Valide com o <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Teste de resultados enriquecidos do Google</a> ou o <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">validador do Schema.org</a>.',
-    helpTitle: "Ajuda e legal",
+    helpTitle: "Ajuda & jurídico",
     helpLinks: { support: "Suporte", privacy: "Política de privacidade", terms: "Termos de serviço" },
   },
 };
@@ -178,25 +181,38 @@ const Section = ({ title, children }) => (
 
 export default function Dashboard() {
   const t = useI18n();
+  const [sp] = useSearchParams();
+  const shop = sp.get("shop") || ""; // Shopify siempre pasa xxxx.myshopify.com
   const [state, setState] = useState(t.statusChecking);
   const [loading, setLoading] = useState(false);
 
-  const checkStatus = () => {
+  async function checkStatus() {
     setLoading(true);
-    fetch("/api/embed-ping")
-      .then((r) => r.json())
-      .then(() => setState(t.statusOk))
-      .catch(() => setState(t.statusWarn))
-      .finally(() => setLoading(false));
-  };
+    try {
+      if (!shop) {
+        setState(t.statusWarn);
+        return;
+      }
+      const r = await fetch(`/api/sae1?shop=${encodeURIComponent(shop)}`, { method: "GET" });
+      const j = await r.json().catch(() => ({}));
+      setState(j && j.active ? t.statusOk : t.statusWarn);
+    } catch {
+      setState(t.statusWarn);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     checkStatus();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop]);
 
   const openThemeEditor = () => {
+    if (!shop) return;
+    const url = `https://${shop}/admin/themes/current/editor?context=apps`;
     if (typeof window !== "undefined") {
-      window.top.location.href = "/admin/themes/current/editor?context=apps";
+      window.top.location.href = url;
     }
   };
 
@@ -211,38 +227,51 @@ export default function Dashboard() {
             <li key={i} dangerouslySetInnerHTML={{ __html: s }} />
           ))}
         </ol>
-        <button
-          onClick={openThemeEditor}
-          style={{
-            marginTop: 6,
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            cursor: "pointer",
-          }}
-        >
-          {t.openEditor}
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            onClick={openThemeEditor}
+            style={{
+              marginTop: 6,
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              cursor: shop ? "pointer" : "not-allowed",
+              background: shop ? "#111827" : "#f3f4f6",
+              color: shop ? "#fff" : "#9ca3af",
+              fontWeight: 600,
+            }}
+            aria-label={t.openEditor}
+            title={t.openEditor}
+            disabled={!shop}
+          >
+            {t.openEditor}
+          </button>
+
+          <button
+            onClick={checkStatus}
+            disabled={loading}
+            style={{
+              marginTop: 6,
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              cursor: "pointer",
+              background: "#fff",
+              color: "#111827",
+              fontWeight: 600,
+              opacity: loading ? 0.6 : 1,
+            }}
+            aria-label={t.retry}
+            title={t.retry}
+          >
+            {t.retry}
+          </button>
+        </div>
       </Section>
 
       <Section title={t.statusTitle}>
         <Card>
           <div dangerouslySetInnerHTML={{ __html: state }} />
-          <div style={{ marginTop: 10 }}>
-            <button
-              onClick={checkStatus}
-              disabled={loading}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                cursor: "pointer",
-                opacity: loading ? 0.6 : 1,
-              }}
-            >
-              {t.retry}
-            </button>
-          </div>
         </Card>
       </Section>
 

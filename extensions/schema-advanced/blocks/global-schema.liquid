@@ -698,13 +698,13 @@
 
 {% if settings.enable_script %}
   <script>
-    fetch("https://schema-advanced-app.vercel.app/api/embed-ping", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shop: {{ shop.permanent_domain | json }}, active: true }),
-    });
+    window.SCHEMA_ADVANCED_SETTINGS = {
+      shop: {{ shop.permanent_domain | json }}
+    };
   </script>
+  <script src="{{ 'schema-advanced-client.js' | asset_url }}" defer></script>
 {% endif %}
+
 
 
 
