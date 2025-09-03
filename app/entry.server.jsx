@@ -1,4 +1,5 @@
 import { PassThrough } from "stream";
+import { shopify } from "~/lib/shopify.server";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable } from "@remix-run/node";
