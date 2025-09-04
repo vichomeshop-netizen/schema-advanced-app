@@ -4,33 +4,37 @@ import { shopify } from "~/lib/shopify.server";
 import { db } from "~/lib/db.server";
 
 export async function loader({ request }) {
-  console.log("[auth.callback] hit");
+  const url = new URL(request.url);
+  const debug = url.searchParams.get("__debug") === "1";
+  const qs = Object.fromEntries(url.searchParams.entries()); // lo que nos manda Shopify
 
-  let session, shop, scope;
+  // 1) prueba rápida: ¿entra la ruta?
+  if (debug) {
+    return json({ ok: true, route: "/auth/callback", received: qs }, { headers: { "cache-control":"no-store" }});
+  }
+
   try {
-    ({ session, shop, scope } = await shopify.auth.callback({
+    const { session, shop, scope } = await shopify.auth.callback({
       isOnline: false,
       rawRequest: request,
-    }));
-  } catch (e) {
-    console.error("[auth.callback] shopify.auth.callback error", e);
-    return json({ ok:false, error:"callback-failed" }, { status: 401 });
-  }
+    });
 
-  console.log("[auth.callback] got session", { shop, hasAccessToken: !!session?.accessToken, scope });
-
-  try {
+    // 2) si llegamos aquí, el HMAC/STATE han pasado y tenemos token
     await db.upsertShop({ shop, accessToken: session.accessToken, scope });
+
+    const host = url.searchParams.get("host");
+    return redirect(`/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`);
   } catch (e) {
-    console.error("[auth.callback] db.upsertShop error", e);
+    // 3) en caso de error, devolvemos TODO para ver el motivo exacto
+    return json({
+      ok: false,
+      where: "auth.callback",
+      message: String(e?.message || e),
+      tip:
+        "Si el mensaje contiene 'HMAC' o 'state', revisa Allowed redirection URL en el Partner Dashboard y que begin() use callbackPath '/auth/callback'.",
+      received: qs,
+    }, { status: 401, headers: { "cache-control": "no-store" } });
   }
-
-  const q = new URL(request.url).searchParams;
-  const host = q.get("host");
-  const dest = `/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`;
-
-  console.log("[auth.callback] redirect ->", dest);
-  return redirect(dest);
 }
 
-export default function AuthCallback() { return null; }
+export default function AuthCallback(){ return null; }
