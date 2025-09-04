@@ -1,4 +1,3 @@
-
 // app/routes/app._index.jsx
 import { json } from "@remix-run/node";
 import { useLoaderData, useOutletContext, useLocation } from "@remix-run/react";
@@ -11,6 +10,8 @@ export async function loader({ request }) {
   return json({
     shop,
     subscriptionStatus: rec?.subscriptionStatus ?? null,
+    subscriptionId: rec?.subscriptionId ?? null,
+    planName: rec?.planName ?? null,
   });
 }
 
@@ -88,9 +89,9 @@ export default function Panel() {
   const qs = new URLSearchParams(search);
   const shopFromQs = qs.get("shop") || "";
 
-  const { shop, subscriptionStatus } = useLoaderData();
-  const needsBilling = subscriptionStatus !== "ACTIVE";
+  const { shop, subscriptionStatus, subscriptionId, planName } = useLoaderData();
   const shopParam = shop || shopFromQs;
+  const isActive = subscriptionStatus === "ACTIVE";
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
@@ -102,9 +103,9 @@ export default function Panel() {
         dangerouslySetInnerHTML={{ __html: t.guideHtml }}
       />
 
-      {/* CTA solo si la suscripción NO está activa */}
-      {needsBilling && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
+      {/* Si NO está activa: CTA de activar */}
+      {!isActive && (
+        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 12 }}>
           <p style={{ marginTop: 0, marginBottom: 8, color: "#374151", fontSize: 14 }}>
             ¿Quieres activar la suscripción para habilitar todas las funciones?
           </p>
@@ -130,6 +131,36 @@ export default function Panel() {
           </form>
         </div>
       )}
+
+      {/* Si está ACTIVA: botón Cancelar para QA */}
+      {isActive && (
+        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
+          <p style={{ margin: 0, color: "#374151", fontSize: 14 }}>
+            Plan actual: <strong>{planName || "—"}</strong> — Estado: <strong>{subscriptionStatus}</strong>
+          </p>
+          <form
+            action={`/api/billing/cancel?shop=${encodeURIComponent(shopParam)}&id=${encodeURIComponent(subscriptionId || "")}`}
+            method="post"
+            style={{ marginTop: 10 }}
+          >
+            <button
+              type="submit"
+              disabled={!shopParam}
+              style={{
+                padding: "8px 12px",
+                border: "1px solid #ef4444",
+                color: "#ef4444",
+                borderRadius: 8,
+                background: "transparent",
+                cursor: shopParam ? "pointer" : "not-allowed"
+              }}
+            >
+              Cancelar suscripción
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
+
