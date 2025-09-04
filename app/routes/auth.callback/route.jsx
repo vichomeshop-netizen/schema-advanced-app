@@ -8,6 +8,9 @@ import {
   clearStateCookieHeader,
 } from "~/lib/state.server";
 
+// ---- Config/API ----
+const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
+
 // Igual que ya tienes: verificación HMAC de Shopify
 function verifyHmac(searchParams, secret) {
   const entries = [];
@@ -24,17 +27,45 @@ function verifyHmac(searchParams, secret) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// Registrar webhooks mínimos
+async function registerWebhook(shop, accessToken, topic, address) {
+  try {
+    const res = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/webhooks.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({
+        webhook: { topic, address, format: "json" },
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn("WEBHOOK_REGISTER_FAIL", { topic, status: res.status, text });
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("WEBHOOK_REGISTER_ERROR", topic, e);
+    return false;
+  }
+}
+
 export async function loader({ request }) {
   const url = new URL(request.url);
 
   // Debug opcional
   if (url.searchParams.get("__debug") === "1") {
-    return json({
-      ok: true,
-      route: "/auth/callback",
-      received: Object.fromEntries(url.searchParams.entries()),
-      cookies: request.headers.get("cookie") || "",
-    }, { headers: { "cache-control": "no-store" }});
+    return json(
+      {
+        ok: true,
+        route: "/auth/callback",
+        received: Object.fromEntries(url.searchParams.entries()),
+        cookies: request.headers.get("cookie") || "",
+      },
+      { headers: { "cache-control": "no-store" } }
+    );
   }
 
   const shop = url.searchParams.get("shop");
@@ -47,7 +78,7 @@ export async function loader({ request }) {
 
   // (Opcional) endurecer shop
   if (!/^[a-z0-9-]+\.myshopify\.com$/i.test(shop)) {
-    return json({ ok:false, message:"Shop inválido" }, { status: 400 });
+    return json({ ok: false, message: "Shop inválido" }, { status: 400 });
   }
 
   // 1) HMAC
@@ -57,7 +88,7 @@ export async function loader({ request }) {
   }
 
   // 2) STATE: cookie firmada (sin Map)
-  const rawCookieState = readStateCookie(request);   // p.ej. "<uuid>.<firma>"
+  const rawCookieState = readStateCookie(request); // p.ej. "<uuid>.<firma>"
   if (!verifyState(rawCookieState, state)) {
     return json({ ok: false, message: "State inválido" }, { status: 401 });
   }
@@ -75,13 +106,38 @@ export async function loader({ request }) {
   const data = await resp.json();
 
   if (!resp.ok || !data?.access_token) {
-    return json({ ok: false, message: "Fallo canje token", status: resp.status, data }, { status: 500 });
+    return json(
+      { ok: false, message: "Fallo canje token", status: resp.status, data },
+      { status: 500 }
+    );
   }
 
   const accessToken = data.access_token;
   const scope = data.scope || data.scopes || "";
 
+  // Guarda en Prisma
   await upsertShop({ shop, accessToken, scope });
+
+  // 3.1) Registra webhooks mínimos (usa APP_URL como base)
+  const appUrlBase = (process.env.APP_URL || "").replace(/\/$/, "");
+  if (appUrlBase) {
+    // Estado de suscripción (para gating)
+    await registerWebhook(
+      shop,
+      accessToken,
+      "app_subscriptions/update",
+      `${appUrlBase}/webhooks/app_subscriptions_update`
+    );
+    // Limpieza al desinstalar
+    await registerWebhook(
+      shop,
+      accessToken,
+      "app/uninstalled",
+      `${appUrlBase}/webhooks/app_uninstalled`
+    );
+  } else {
+    console.warn("APP_URL no definido: no se registran webhooks");
+  }
 
   // 4) Limpia cookie y redirige al panel
   const headers = new Headers();
@@ -94,6 +150,7 @@ export async function loader({ request }) {
   );
 }
 // (resource route: sin export default)
+
 
 
 
