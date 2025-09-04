@@ -1,16 +1,17 @@
+// app/routes/webhooks.app_uninstalled/route.js
 import crypto from "node:crypto";
 import { deleteShop } from "~/lib/shop.server";
 
-// Verificación HMAC (igual que en otros webhooks)
+// Verificación HMAC correcta (header en base64)
 function verifyHmac(buf, hmacHeader) {
   const digest = crypto
     .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
-    .update(buf)
+    .update(buf) // buf es Buffer con el raw body
     .digest("base64");
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(digest),
-      Buffer.from(hmacHeader || "", "utf8")
+      Buffer.from(digest, "base64"),
+      Buffer.from(hmacHeader || "", "base64")
     );
   } catch {
     return false;
@@ -18,27 +19,34 @@ function verifyHmac(buf, hmacHeader) {
 }
 
 export async function action({ request }) {
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405 });
+  }
+
   const hmac = request.headers.get("X-Shopify-Hmac-Sha256") || "";
   const shop = request.headers.get("X-Shopify-Shop-Domain") || "";
+  const topic = request.headers.get("X-Shopify-Topic") || "";
   const bodyBuf = Buffer.from(await request.arrayBuffer());
 
   if (!verifyHmac(bodyBuf, hmac)) {
     return new Response("unauthorized", { status: 401 });
   }
 
-  // Shopify envía un body con info básica de la tienda (no lo necesitamos para borrar).
-  // Si prefieres conservar el registro, cambia deleteShop() por un "markUninstalled".
+  // (Opcional) Asegura que es el tópico correcto
+  if (topic !== "app/uninstalled") {
+    return new Response("wrong topic", { status: 400 });
+  }
+
   if (shop) {
     try {
-      await deleteShop(shop);
+      await deleteShop(shop); // o marca como UNINSTALLED si prefieres conservar registro
     } catch (e) {
-      // Idempotencia: si ya no existe, respondemos 200 igualmente para que Shopify no reintente.
+      // Idempotente: si ya no existe, responde 200 para que Shopify no reintente
       console.warn("APP_UNINSTALLED deleteShop warn:", e?.message || e);
     }
   }
 
-  return new Response("ok");
+  return new Response("ok", { status: 200 });
 }
 
-// Reutilizamos action para GET (algunos validadores llaman por GET)
-export const loader = action;
+export const loader = () => new Response("Not Found", { status: 404 });
