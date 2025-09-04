@@ -1,8 +1,10 @@
+
 // app/routes/api.billing.start.jsx
 import { redirect, json } from "@remix-run/node";
 import { getShop } from "~/lib/shop.server";
 
 const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
+
 const MUTATION = `
 mutation CreateSubscription(
   $name: String!,
@@ -42,14 +44,13 @@ async function isDevShop(shop, accessToken) {
     if (!r.ok) return false;
     const j = await r.json();
     const plan = (j?.shop?.plan_name || "").toLowerCase();
-    // development/partner_test/affiliate suelen indicar tienda de desarrollo
     return ["development", "partner_test", "affiliate"].some((k) => plan.includes(k));
   } catch {
     return false;
   }
 }
 
-export async function action({ request }) {
+async function start(request) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
   if (!shop) return json({ error: "missing shop" }, 400);
@@ -57,10 +58,12 @@ export async function action({ request }) {
   const s = await getShop(shop);
   if (!s?.accessToken) return json({ error: "no token" }, 401);
 
-  const returnUrl = process.env.BILLING_RETURN_URL || `${url.origin}/app?shop=${shop}`;
+  const returnUrl =
+    process.env.BILLING_RETURN_URL || `${url.origin}/app?shop=${encodeURIComponent(shop)}`;
 
-  // TEST MODE: true si tienda dev o si fuerzas con ENV
-  const TEST_MODE = (await isDevShop(shop, s.accessToken)) || process.env.BILLING_TEST === "1";
+  // TEST MODE si tienda dev o forzado por env
+  const TEST_MODE =
+    (await isDevShop(shop, s.accessToken)) || process.env.BILLING_TEST === "1";
 
   const vars = {
     name: "Schema Advanced — Monthly",
@@ -71,20 +74,43 @@ export async function action({ request }) {
         plan: {
           appRecurringPricingDetails: {
             price: { amount: 9.99, currencyCode: "EUR" },
-            // interval: "EVERY_30_DAYS", // opcional: si tu versión lo requiere, descomenta
+            // interval: "EVERY_30_DAYS", // descomenta si tu versión lo exige
           },
         },
       },
     ],
-    test: TEST_MODE, // <<— clave para no pedir tarjeta en dev
+    test: TEST_MODE,
   };
 
   const data = await adminGraphql(shop, s.accessToken, MUTATION, vars);
   const out = data?.data?.appSubscriptionCreate;
-  if (!out) return json({ error: "no response" }, 500);
-  if (out.userErrors?.length) return json({ error: out.userErrors }, 400);
 
-  return redirect(out.confirmationUrl);
+  // Si Shopify devolvió errores de negocio
+  if (out?.userErrors?.length) {
+    const msg = out.userErrors.map((e) => e.message).join("; ").toLowerCase();
+
+    // Fallback: si ya hay una suscripción activa y Shopify no nos da confirmationUrl,
+    // volvemos al panel (el loader hará check en vivo / webhook hará sync)
+    if (msg.includes("active subscription") || msg.includes("already")) {
+      return redirect(returnUrl);
+    }
+    return json({ error: out.userErrors }, 400);
+  }
+
+  const confirmationUrl = out?.confirmationUrl;
+  if (!confirmationUrl) {
+    // Último recurso: volver al panel
+    return redirect(returnUrl);
+  }
+
+  return redirect(confirmationUrl);
 }
 
-export const loader = () => json({ ok: true });
+export async function action({ request }) {
+  return start(request);
+}
+
+// Permitimos GET para auto-redirect (sin botón)
+export async function loader({ request }) {
+  return start(request);
+}

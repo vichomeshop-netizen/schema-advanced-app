@@ -1,6 +1,6 @@
 // app/routes/app._index.jsx
 import { json } from "@remix-run/node";
-import { useLoaderData, useOutletContext, useLocation } from "@remix-run/react";
+import { useLoaderData, useOutletContext } from "@remix-run/react";
 import { prisma } from "~/lib/prisma.server";
 
 export async function loader({ request }) {
@@ -10,7 +10,6 @@ export async function loader({ request }) {
   return json({
     shop,
     subscriptionStatus: rec?.subscriptionStatus ?? null,
-    subscriptionId: rec?.subscriptionId ?? null,
     planName: rec?.planName ?? null,
   });
 }
@@ -85,82 +84,37 @@ export default function Panel() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
-  const { search } = useLocation();
-  const qs = new URLSearchParams(search);
-  const shopFromQs = qs.get("shop") || "";
-
-  const { shop, subscriptionStatus, subscriptionId, planName } = useLoaderData();
-  const shopParam = shop || shopFromQs;
+  const { subscriptionStatus, planName } = useLoaderData();
   const isActive = subscriptionStatus === "ACTIVE";
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
+      {/* Badge simple (opcional) */}
+      <div style={{ marginBottom: 8 }}>
+        <span
+          style={{
+            padding: "4px 8px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 600,
+            border: "1px solid #10b981",
+            color: "#065f46",
+            background: "#ecfdf5",
+          }}
+        >
+          {isActive ? `Plan activo${planName ? ` — ${planName}` : ""}` : "Sin suscripción"}
+        </span>
+      </div>
+
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>{t.title}</h1>
       <p style={{ marginTop: 0, color: "#374151" }}>{t.intro}</p>
 
       <section
-        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 16 }}
+        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginTop: 12 }}
         dangerouslySetInnerHTML={{ __html: t.guideHtml }}
       />
-
-      {/* Si NO está activa: CTA de activar */}
-      {!isActive && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 12 }}>
-          <p style={{ marginTop: 0, marginBottom: 8, color: "#374151", fontSize: 14 }}>
-            ¿Quieres activar la suscripción para habilitar todas las funciones?
-          </p>
-          <form
-            action={`/api/billing/start?shop=${encodeURIComponent(shopParam)}`}
-            method="post"
-            target="_top"
-          >
-            <button
-              type="submit"
-              disabled={!shopParam}
-              title={shopParam ? "Abrir checkout de suscripción" : "Falta el parámetro ?shop en la URL"}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                background: "#f9fafb",
-                cursor: shopParam ? "pointer" : "not-allowed"
-              }}
-            >
-              Activar suscripción
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Si está ACTIVA: botón Cancelar para QA */}
-      {isActive && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
-          <p style={{ margin: 0, color: "#374151", fontSize: 14 }}>
-            Plan actual: <strong>{planName || "—"}</strong> — Estado: <strong>{subscriptionStatus}</strong>
-          </p>
-          <form
-            action={`/api/billing/cancel?shop=${encodeURIComponent(shopParam)}&id=${encodeURIComponent(subscriptionId || "")}`}
-            method="post"
-            style={{ marginTop: 10 }}
-          >
-            <button
-              type="submit"
-              disabled={!shopParam}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #ef4444",
-                color: "#ef4444",
-                borderRadius: 8,
-                background: "transparent",
-                cursor: shopParam ? "pointer" : "not-allowed"
-              }}
-            >
-              Cancelar suscripción
-            </button>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
+
 

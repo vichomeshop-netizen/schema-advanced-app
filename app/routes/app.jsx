@@ -1,17 +1,58 @@
 // app/routes/app.jsx
 import { Outlet, NavLink, useSearchParams, useLocation } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { json, redirect } from "@remix-run/node";
+import { prisma } from "~/lib/prisma.server";
+
+const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
+const LIVE_Q = `query { currentAppInstallation { activeSubscriptions { id name status } } }`;
+
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop") || null;
+  if (!shop) throw json({ error: "missing shop" }, { status: 400 });
+
+  const rec = await prisma.shop.findUnique({ where: { shop } });
+  let status = rec?.subscriptionStatus ?? null;
+
+  // Fallback: tras volver del checkout, valida en vivo y sincroniza si ya está ACTIVA
+  if (status !== "ACTIVE" && rec?.accessToken) {
+    try {
+      const r = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": rec.accessToken },
+        body: JSON.stringify({ query: LIVE_Q }),
+      });
+      const data = await r.json();
+      const sub = data?.data?.currentAppInstallation?.activeSubscriptions?.[0];
+      if (sub?.status === "ACTIVE") {
+        await prisma.shop.update({
+          where: { shop },
+          data: {
+            subscriptionId: String(sub.id).replace(/^gid:\/\/shopify\/AppSubscription\//, ""),
+            subscriptionStatus: sub.status,
+            planName: sub.name,
+          },
+        });
+        status = "ACTIVE";
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (status !== "ACTIVE") {
+    // Redirección automática a la pantalla de suscripción (GET soportado)
+    throw redirect(`/api/billing/start?shop=${encodeURIComponent(shop)}`);
+  }
+
+  return json({ shop, subscriptionStatus: status });
+}
 
 /**
- * Layout padre de /app:
- * - ÚNICA barra lateral con pestañas (Overview, Panel, Products, Collections, Pages, Blog, Global, Suppressor, Settings)
- * - Selector de idioma ES/EN/PT (propaga via <Outlet context={{lang}} />)
- * - Botón "Open theme editor" robusto:
- *   - Decodifica host base64url → "admin.shopify.com/store/..." o "{shop}.myshopify.com/admin"
- *   - Construye la URL del editor en ambos casos
- *   - Navega en _top mediante <a target="_top"> (evita bloqueos por iframe)
- *   - Fallbacks: ?shop=, window.Shopify.shop, y ruta relativa /admin
- * - Conserva SIEMPRE el query string (?host, ?shop, ?lang) al navegar por la app
+ * Layout padre de /app (sin botones de billing):
+ * - Sidebar único con pestañas
+ * - Selector de idioma (propaga vía <Outlet context={{lang}} />)
+ * - Botón "Open theme editor" robusto
+ * - Conserva el query string al navegar
  */
 
 function decodeHostB64Url(hostParam) {
@@ -28,21 +69,18 @@ function decodeHostB64Url(hostParam) {
 function buildThemeEditorUrl() {
   const params = new URLSearchParams(window.location.search);
   const hostParam = params.get("host") || "";
-  const decoded = decodeHostB64Url(hostParam); // ej.: "admin.shopify.com/store/xxxx" o "shop.myshopify.com/admin"
+  const decoded = decodeHostB64Url(hostParam); // "admin.shopify.com/store/xxx" o "{shop}.myshopify.com/admin"
 
-  // Caso A: admin.shopify.com/store/{store}
   const m1 = decoded.match(/admin\.shopify\.com\/store\/([^\/?#]+)/i);
   if (m1 && m1[1]) {
     return `https://admin.shopify.com/store/${m1[1]}/themes/current/editor?context=apps`;
   }
 
-  // Caso B: {shop}.myshopify.com/admin
   const m2 = decoded.match(/([^\/]+\.myshopify\.com)\/admin/i);
   if (m2 && m2[1]) {
     return `https://${m2[1]}/admin/themes/current/editor?context=apps`;
   }
 
-  // Fallbacks con ?shop= o window.Shopify.shop
   const shop =
     params.get("shop") ||
     (typeof window !== "undefined" && window.Shopify && window.Shopify.shop) ||
@@ -52,24 +90,21 @@ function buildThemeEditorUrl() {
     return `https://${shop}/admin/themes/current/editor?context=apps`;
   }
 
-  // Último recurso (si ya estás dentro del admin)
   return `/admin/themes/current/editor?context=apps`;
 }
 
 export default function AppLayout() {
   const [sp] = useSearchParams();
-  const { search } = useLocation(); // <- conservar ?host, ?shop, ?lang entre pestañas
+  const { search } = useLocation();
   const initial = sp.get("lang") || "es";
   const [lang, setLang] = useState(["es", "en", "pt"].includes(initial) ? initial : "es");
 
-  // Mantener ?lang= en la URL sin perder el resto de params (host, shop, etc.)
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     q.set("lang", lang);
     window.history.replaceState({}, "", `?${q.toString()}`);
   }, [lang]);
 
-  // Helper para NavLink que conserva el search actual
   const toWithSearch = (pathname) => ({ pathname, search });
 
   function navBtn(isActive) {
@@ -85,12 +120,9 @@ export default function AppLayout() {
     };
   }
 
-  // Abrir editor de temas: robusto y compatible con iframe del Admin
   const openThemeEditor = () => {
     try {
       const url = buildThemeEditorUrl();
-
-      // Navegación segura fuera del iframe:
       const a = document.createElement("a");
       a.href = url;
       a.target = "_top";
@@ -142,12 +174,10 @@ export default function AppLayout() {
         </label>
 
         <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
-          {/* Overview */}
           <NavLink to={toWithSearch("overview")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
           </NavLink>
 
-          {/* Raíz (Panel) */}
           <NavLink end to={toWithSearch(".")} style={({ isActive }) => navBtn(isActive)}>
             {lang === "pt" ? "Painel" : lang === "en" ? "Panel" : "Panel"}
           </NavLink>
@@ -196,33 +226,20 @@ export default function AppLayout() {
           {lang === "pt" ? "Abrir editor do tema" : lang === "en" ? "Open theme editor" : "Abrir editor de temas"}
         </button>
 
-        {/* Enlaces legales/soporte */}
         <div style={{ marginTop: 14, fontSize: 12 }}>
-          <div>
-            <a href="/support" target="_blank" rel="noreferrer">
-              Support
-            </a>
-          </div>
-          <div>
-            <a href="/terms" target="_blank" rel="noreferrer">
-              Terms
-            </a>
-          </div>
-          <div>
-            <a href="/privacy" target="_blank" rel="noreferrer">
-              Privacy
-            </a>
-          </div>
+          <div><a href="/support" target="_blank" rel="noreferrer">Support</a></div>
+          <div><a href="/terms" target="_blank" rel="noreferrer">Terms</a></div>
+          <div><a href="/privacy" target="_blank" rel="noreferrer">Privacy</a></div>
         </div>
       </aside>
 
       {/* === CONTENIDO === */}
       <main>
-        {/* Pasamos el idioma a las rutas hijas */}
         <Outlet context={{ lang }} />
       </main>
     </div>
   );
 }
+
 
 
