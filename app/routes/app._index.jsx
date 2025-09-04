@@ -1,5 +1,5 @@
 // app/routes/app._index.jsx
-import { useOutletContext } from "@remix-run/react";
+import { useOutletContext, useLocation } from "@remix-run/react";
 
 const TEXT = {
   es: {
@@ -71,15 +71,48 @@ export default function Panel() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
+  // Lee ?shop de la URL para pasarla al endpoint de billing
+  const { search } = useLocation();
+  const qs = new URLSearchParams(search);
+  const shop = qs.get("shop") || "";
+
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>{t.title}</h1>
       <p style={{ marginTop: 0, color: "#374151" }}>{t.intro}</p>
 
       <section
-        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}
+        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 16 }}
         dangerouslySetInnerHTML={{ __html: t.guideHtml }}
       />
+
+      {/* CTA de suscripción (sale del iframe con target="_top") */}
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
+        <p style={{ marginTop: 0, marginBottom: 8, color: "#374151", fontSize: 14 }}>
+          ¿Quieres activar la suscripción para habilitar todas las funciones?
+        </p>
+        <form
+          action={`/api/billing/start?shop=${encodeURIComponent(shop)}`}
+          method="post"
+          target="_top"
+        >
+          <button
+            type="submit"
+            disabled={!shop}
+            title={shop ? "Abrir checkout de suscripción" : "Falta el parámetro ?shop en la URL"}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              background: "#f9fafb",
+              cursor: shop ? "pointer" : "not-allowed"
+            }}
+          >
+            Activar suscripción
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
+
