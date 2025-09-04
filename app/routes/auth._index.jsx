@@ -4,8 +4,13 @@ import { shopify } from "~/lib/shopify.server";
 export async function loader({ request }) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
-  if (!shop) return new Response("Falta ?shop=mi-tienda.myshopify.com", { status: 400 });
 
+  // 👇 Línea de diagnóstico
+  console.log("[auth._index] hit", { shop });
+
+  if (!shop) {
+    return new Response("Falta ?shop=mi-tienda.myshopify.com", { status: 400 });
+  }
   const authUrl = await shopify.auth.begin({
     shop,
     callbackPath: "/auth/callback",
@@ -14,4 +19,3 @@ export async function loader({ request }) {
   return redirect(authUrl);
 }
 export default function AuthIndex(){ return null; }
-
