@@ -5,55 +5,56 @@ function normalizeBase(u) { return (u || "").replace(/\/+$/, ""); }
 
 export async function ensureWebhooks({ shop, accessToken, appUrl }) {
   const base = normalizeBase(appUrl);
+
   const desired = [
     { topic: "app/uninstalled",          address: `${base}/webhooks/app_uninstalled` },
     { topic: "app_subscriptions/update", address: `${base}/webhooks/app_subscriptions_update` },
   ];
 
-  // 1) listar existentes
-  const list = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+  // 1) Lista existentes (cliente-side filter por seguridad)
+  const listRes = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
     headers: { "X-Shopify-Access-Token": accessToken },
-  }).then(r => r.json());
-  const existing = list.webhooks || [];
+  });
+  const { webhooks = [] } = await listRes.json();
 
-  // 2) por cada topic deseado, eliminar los que no coinciden en address y crear si falta el exacto
-  const ops = [];
+  // 2) Para cada deseado: si existe EXACTO → NO crear; borra variantes con otra address si quieres exclusividad
   for (const d of desired) {
-    const current = existing.filter(w => w.topic === d.topic);
-    const exact = current.find(w => w.address === d.address);
+    const sameTopic = webhooks.filter(w => w.topic === d.topic);
+    const exact = sameTopic.find(w => w.address === d.address);
 
-    for (const w of current) {
+    // (Opcional) Exclusividad: elimina otros del MISMO topic con address distinta
+    for (const w of sameTopic) {
       if (w.address !== d.address) {
-        ops.push(fetch(`https://${shop}/admin/api/${API_VER}/webhooks/${w.id}.json`, {
+        await fetch(`https://${shop}/admin/api/${API_VER}/webhooks/${w.id}.json`, {
           method: "DELETE",
           headers: { "X-Shopify-Access-Token": accessToken },
-        }));
+        });
       }
     }
-    if (!exact) {
-      ops.push(fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": accessToken,
-        },
-        body: JSON.stringify({ webhook: { topic: d.topic, address: d.address, format: "json" } }),
-      }));
+
+    // Si ya existe el EXACTO → skip creación
+    if (exact) continue;
+
+    // 3) Crear si falta (maneja 422 como éxito idempotente)
+    const createRes = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({ webhook: { topic: d.topic, address: d.address, format: "json" } }),
+    });
+
+    if (createRes.status === 422) {
+      // address for this topic has already been taken → tratar como OK
+      // (puede venir de una carrera entre instancias)
+      continue;
+    }
+
+    if (!createRes.ok) {
+      const text = await createRes.text().catch(() => "");
+      console.error("WEBHOOK_CREATE_FAIL", d.topic, createRes.status, text);
     }
   }
-
-  // 3) opcional: eliminar cualquier otro webhook de tu app que no esté en 'desired'
-  const desiredKeys = new Set(desired.map(d => `${d.topic}|${d.address}`));
-  for (const w of existing) {
-    const key = `${w.topic}|${w.address}`;
-    if (!desiredKeys.has(key) && (w.topic === "app/uninstalled" || w.topic === "app_subscriptions/update")) {
-      ops.push(fetch(`https://${shop}/admin/api/${API_VER}/webhooks/${w.id}.json`, {
-        method: "DELETE",
-        headers: { "X-Shopify-Access-Token": accessToken },
-      }));
-    }
-  }
-
-  await Promise.allSettled(ops);
-  return { ok: true };
 }
+
