@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
-import { deleteShop } from "~/lib/shop.server";
+import { setSubscription } from "~/lib/shop.server";
 
-// Verificación HMAC (Shopify)
 function verifyHmac(bodyBuffer, hmacHeader) {
   const digest = crypto.createHmac("sha256", process.env.SHOPIFY_API_SECRET)
     .update(bodyBuffer)
@@ -22,17 +21,19 @@ export async function action({ request }) {
     return new Response("unauthorized", { status: 401 });
   }
 
-  // Opcional: borra el registro del shop al desinstalar.
-  // Si prefieres no borrarlo, comenta esta línea.
   try {
-    if (shop) await deleteShop(shop);
+    const json = JSON.parse(bodyBuffer.toString("utf8"));
+    await setSubscription(shop, {
+      subscriptionId: json.admin_graphql_api_id,
+      status: json.status,
+      name: json.name,
+      trialEndsAt: json.trial_ends_at,
+    });
   } catch (e) {
-    // no hacemos throw para no fallar el webhook
-    console.error("uninstalled alias deleteShop error:", e);
+    console.error("subscriptions_update alias error:", e);
   }
 
   return new Response("ok");
 }
 
-export const loader = action; // Shopify puede hacer GET de verificación en algunos casos
-";
+export const loader = action;
