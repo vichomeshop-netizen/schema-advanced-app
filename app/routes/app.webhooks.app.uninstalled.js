@@ -22,17 +22,14 @@ export async function action({ request }) {
     return new Response("unauthorized", { status: 401 });
   }
 
-  // Opcional: borra el registro del shop al desinstalar.
-  // Si prefieres no borrarlo, comenta esta línea.
+  // Opcional: borra el shop al desinstalar (o comenta si prefieres conservarlo)
   try {
     if (shop) await deleteShop(shop);
   } catch (e) {
-    // no hacemos throw para no fallar el webhook
     console.error("uninstalled alias deleteShop error:", e);
   }
 
   return new Response("ok");
 }
 
-export const loader = action; // Shopify puede hacer GET de verificación en algunos casos
-";
+export const loader = action; // por si Shopify hace una verificación por GET
