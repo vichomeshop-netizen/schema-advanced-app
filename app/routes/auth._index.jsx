@@ -1,11 +1,10 @@
-// app/routes/auth._index.jsx
 import { redirect } from "@remix-run/node";
 import { shopify } from "~/lib/shopify.server";
 
 export async function loader({ request }) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
-  if (!shop) return new Response("Falta ?shop=tu-tienda.myshopify.com", { status: 400 });
+  if (!shop) return new Response("Falta ?shop=mi-tienda.myshopify.com", { status: 400 });
 
   const authUrl = await shopify.auth.begin({
     shop,

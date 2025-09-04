@@ -1,6 +1,6 @@
 import { redirect } from "@remix-run/node";
 import { shopify } from "~/lib/shopify.server";
-import { db } from "~/lib/db.server";              // usa alias "~" para evitar duplicados
+import { db } from "~/lib/db.server";
 import { saeTokenCookie } from "~/lib/sae-cookie.server";
 
 export async function loader({ request, params }) {
@@ -12,12 +12,13 @@ export async function loader({ request, params }) {
       rawRequest: request,
     });
 
-    // Guarda en memoria
+    // Guarda en memoria (válido para esta λ)
     await db.upsertShop({ shop, accessToken: session.accessToken, scope });
 
-    // + Emite cookie firmada (fallback si caes en otra instancia)
-    const cookieVal = JSON.stringify({ shop, accessToken: session.accessToken, scope });
-    const setCookie = await saeTokenCookie.serialize(cookieVal);
+    // Y además emite cookie firmada para que otras λ puedan leerla
+    const setCookie = await saeTokenCookie.serialize(
+      JSON.stringify({ shop, accessToken: session.accessToken, scope })
+    );
 
     const q = new URL(request.url).searchParams;
     const host = q.get("host");
@@ -26,6 +27,7 @@ export async function loader({ request, params }) {
     });
   }
 
+  // Inicio OAuth
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
   if (shop) {

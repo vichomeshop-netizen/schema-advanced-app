@@ -5,6 +5,6 @@ export const saeTokenCookie = createCookie("sae_t", {
   sameSite: "lax",
   secure: true,
   path: "/",
-  maxAge: 600, // 10 minutos (diagnóstico)
+  maxAge: 600, // 10 minutos, solo diagnóstico
   secrets: [process.env.SESSION_SECRET || "dev-secret"],
 });
