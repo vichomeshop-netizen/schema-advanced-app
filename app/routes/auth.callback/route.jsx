@@ -1,7 +1,7 @@
 // app/routes/auth.callback/route.jsx
 import { redirect, json } from "@remix-run/node";
 import crypto from "node:crypto";
-import { db } from "~/lib/db.server";
+import { upsertShop } from "~/lib/shop.server";
 import {
   readStateCookie,
   verifyState,
@@ -81,7 +81,7 @@ export async function loader({ request }) {
   const accessToken = data.access_token;
   const scope = data.scope || data.scopes || "";
 
-  await db.upsertShop({ shop, accessToken, scope });
+  await upsertShop({ shop, accessToken, scope });
 
   // 4) Limpia cookie y redirige al panel
   const headers = new Headers();
