@@ -1,0 +1,31 @@
+.shopify/deploy-bundle/manifest.json:88:       "uid": "app/uninstalled::undefined::/webhooks/app/uninstalled",
+.shopify/deploy-bundle/manifest.json:89:       "assets": "app/uninstalled::undefined::/webhooks/app/uninstalled",
+.shopify/deploy-bundle/manifest.json:92:         "topic": "app/uninstalled",
+.shopify/deploy-bundle/manifest.json:94:         "uri": "https://schema-advanced-app.vercel.app/app/webhooks/app/uninstalled"
+app/lib/ensure-webhooks.server.js:6: export async function ensureWebhooks({ shop, accessToken, appUrl }) {
+app/lib/ensure-webhooks.server.js:10:     { topic: "app/uninstalled",          address: `${base}/webhooks/app_uninstalled` },
+app/lib/ensure-webhooks.server.js:11:     { topic: "app_subscriptions/update", address: `${base}/webhooks/app_subscriptions_update` },
+app/lib/ensure-webhooks.server.js:15:   const listRes = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+app/lib/ensure-webhooks.server.js:39:     const createRes = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+app/routes/api.dev.register-webhooks/route.js:6:   const res = await fetch(`https://${shop}/admin/api/${V}/webhooks.json`, {
+app/routes/api.dev.register-webhooks/route.js:30:   const r1 = await reg(shop, s.accessToken, "app/uninstalled", `${base}/webhooks/app_uninstalled`);
+app/routes/api.dev.register-webhooks/route.js:31:   const r2 = await reg(shop, s.accessToken, "app_subscriptions/update", `${base}/webhooks/app_subscriptions_update`);
+app/routes/api.dev.webhooks.list/route.js:13:   const res = await fetch(`https://${shop}/admin/api/${V}/webhooks.json`, {
+app/routes/auth.callback/route.jsx:33:     const res = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/webhooks.json`, {
+app/routes/auth.callback/route.jsx:128:       "app_subscriptions/update",
+app/routes/auth.callback/route.jsx:129:       `${appUrlBase}/webhooks/app_subscriptions_update`
+app/routes/auth.callback/route.jsx:135:       "app/uninstalled",
+app/routes/auth.callback/route.jsx:136:       `${appUrlBase}/webhooks/app_uninstalled`
+app/routes/dev.webhooks.ensure/route.js:8: async function ensureWebhooks({ shop, accessToken, appUrl }) {
+app/routes/dev.webhooks.ensure/route.js:11:     { topic: "app/uninstalled",          address: `${base}/webhooks/app_uninstalled` },
+app/routes/dev.webhooks.ensure/route.js:12:     { topic: "app_subscriptions/update", address: `${base}/webhooks/app_subscriptions_update` },
+app/routes/dev.webhooks.ensure/route.js:15:   const listRes = await fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+app/routes/dev.webhooks.ensure/route.js:24:     const isManaged = w.topic === "app/uninstalled" || w.topic === "app_subscriptions/update";
+app/routes/dev.webhooks.ensure/route.js:36:       ops.push(fetch(`https://${shop}/admin/api/${API_VER}/webhooks.json`, {
+app/routes/dev.webhooks.ensure/route.js:63:   const out = await ensureWebhooks({ shop, accessToken: rec.accessToken, appUrl });
+app/routes/webhooks.app_uninstalled/route.js:18:   if (topic !== "app/uninstalled") return new Response("wrong topic", { status: 400 });
+filelist.txt:97: app/routes/webhooks.app_subscriptions_update/route.js
+routes_tree.txt:38: app/routes/webhooks.app_subscriptions_update/route.js
+shopify.app.toml:16:   topics = [ "app/uninstalled" ]
+shopify.app.toml:17:   uri = "/webhooks/app/uninstalled"
+shopify.web.toml:3: webhooks_path = "/webhooks/app/uninstalled"
