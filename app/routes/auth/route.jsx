@@ -1,6 +1,7 @@
 // app/routes/auth/route.jsx
 import { redirect, json } from "@remix-run/node";
 import { makeState, setStateCookieHeader } from "~/lib/state.server";
+import { getShop } from "~/lib/shop.server";
 
 const ABS = (p) =>
   (process.env.APP_URL?.replace(/\/+$/, "") || "") + (p.startsWith("/") ? p : `/${p}`);
@@ -9,6 +10,10 @@ function respondHTML(html) {
   return new Response("<!doctype html>" + html, {
     headers: { "content-type": "text/html; charset=utf-8" },
   });
+}
+
+function parseScopes(s) {
+  return new Set((s || "").split(",").map(x => x.trim()).filter(Boolean));
 }
 
 export async function loader({ request }) {
@@ -23,6 +28,7 @@ export async function loader({ request }) {
       "SHOPIFY_API_KEY",
       "SHOPIFY_API_SECRET",
       "SCOPES",
+      "SHOPIFY_API_SCOPES",
       "APP_URL",
       "SHOPIFY_API_VERSION",
       "SESSION_SECRET",
@@ -45,12 +51,32 @@ export async function loader({ request }) {
 </body></html>`);
   }
 
-  // 2) Genera state firmado y setéalo en cookie (solo el valor viaja en la URL)
+  // 2) ¿Faltan scopes? (si no faltan, vamos directo a /app)
+  const required = parseScopes(process.env.SCOPES || process.env.SHOPIFY_API_SCOPES || "");
+  let needsReauth = true;
+  try {
+    const s = await getShop(shop);
+    if (s?.scope) {
+      const current = parseScopes(s.scope);
+      // needsReauth si algún scope requerido NO está en current
+      needsReauth = [...required].some(req => !current.has(req));
+    }
+  } catch {
+    // Si no existe en BD, seguiremos a OAuth igualmente
+    needsReauth = true;
+  }
+
+  if (!needsReauth) {
+    const toApp = `/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`;
+    return redirect(toApp);
+  }
+
+  // 3) Genera state firmado y setéalo en cookie (solo el valor viaja en la URL)
   const stateRaw = makeState();             // p.ej. "<uuid>.<firma>"
   const statePublic = stateRaw.split(".")[0];
 
   const clientId = process.env.SHOPIFY_API_KEY || "";
-  const scopes = (process.env.SCOPES || "").trim();
+  const scopes = [...required].join(",");   // usa los scopes de ENV normalizados
   const redirectUri = ABS("/auth/callback");
 
   if (!clientId || !scopes || !redirectUri) {
@@ -60,13 +86,14 @@ export async function loader({ request }) {
     );
   }
 
-  // 3) Redirige a Shopify con el state público y envía la cookie firmada
+  // 4) Redirige a Shopify con el state público y envía la cookie firmada
   const authUrl =
     `https://${shop}/admin/oauth/authorize` +
     `?client_id=${encodeURIComponent(clientId)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&state=${encodeURIComponent(statePublic)}`;
+    // Nota: añade grant_options[]=per-user si usas tokens online
 
   const headers = new Headers();
   headers.append("Set-Cookie", setStateCookieHeader(stateRaw)); // HttpOnly; Secure; SameSite=Lax; Max-Age=300
