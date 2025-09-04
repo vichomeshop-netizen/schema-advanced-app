@@ -1,5 +1,5 @@
 // app/routes/app.jsx
-import { Outlet, NavLink, useSearchParams, useLocation } from "@remix-run/react";
+import { Outlet, NavLink, useSearchParams, useLocation, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { json, redirect } from "@remix-run/node";
 import { prisma } from "~/lib/prisma.server";
@@ -10,6 +10,7 @@ const LIVE_Q = `query { currentAppInstallation { activeSubscriptions { id name s
 export async function loader({ request }) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop") || null;
+  const host = url.searchParams.get("host") || ""; // ⬅️ añadido (scope global del loader)
   if (!shop) throw json({ error: "missing shop" }, { status: 400 });
 
   const rec = await prisma.shop.findUnique({ where: { shop } });
@@ -40,14 +41,14 @@ export async function loader({ request }) {
   }
 
   if (status !== "ACTIVE") {
-    // Redirección automática a la pantalla de suscripción (GET soportado)
-  const q = new URLSearchParams({ shop });
- const host = url.searchParams.get("host") || "";
- if (host) q.set("host", host);
- throw redirect(`/api/billing/start?${q.toString()}`);
+    // Redirección automática a la pantalla de suscripción (GET soportado) propagando host
+    const q = new URLSearchParams({ shop });
+    if (host) q.set("host", host);
+    throw redirect(`/api/billing/start?${q.toString()}`);
   }
 
-  return json({ shop, subscriptionStatus: status });
+  // Devolvemos apiKey y host para el re-embed en el cliente
+  return json({ shop, subscriptionStatus: status, apiKey: process.env.SHOPIFY_API_KEY, host });
 }
 
 /**
@@ -97,11 +98,24 @@ function buildThemeEditorUrl() {
 }
 
 export default function AppLayout() {
+  const { apiKey, host } = useLoaderData(); // ⬅️ apiKey/host del loader
   const [sp] = useSearchParams();
   const { search } = useLocation();
   const initial = sp.get("lang") || "es";
   const [lang, setLang] = useState(["es", "en", "pt"].includes(initial) ? initial : "es");
 
+  // 🔁 Re-embed automático si estamos fuera del iframe y tenemos ?host=...
+  useEffect(() => {
+    if (!apiKey || !host) return;
+    if (typeof window === "undefined") return;
+    if (window.top === window.self) {
+      import("@shopify/app-bridge").then(({ default: createApp }) => {
+        createApp({ apiKey, host, forceRedirect: true });
+      }).catch(() => { /* ignore */ });
+    }
+  }, [apiKey, host]);
+
+  // Mantener ?lang= en la URL sin perder el resto de params (host, shop, etc.)
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     q.set("lang", lang);
@@ -243,6 +257,7 @@ export default function AppLayout() {
     </div>
   );
 }
+
 
 
 
