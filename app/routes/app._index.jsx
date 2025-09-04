@@ -1,5 +1,18 @@
+
 // app/routes/app._index.jsx
-import { useOutletContext, useLocation } from "@remix-run/react";
+import { json } from "@remix-run/node";
+import { useLoaderData, useOutletContext, useLocation } from "@remix-run/react";
+import { prisma } from "~/lib/prisma.server";
+
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop") || null;
+  const rec = shop ? await prisma.shop.findUnique({ where: { shop } }) : null;
+  return json({
+    shop,
+    subscriptionStatus: rec?.subscriptionStatus ?? null,
+  });
+}
 
 const TEXT = {
   es: {
@@ -71,10 +84,13 @@ export default function Panel() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
-  // Lee ?shop de la URL para pasarla al endpoint de billing
   const { search } = useLocation();
   const qs = new URLSearchParams(search);
-  const shop = qs.get("shop") || "";
+  const shopFromQs = qs.get("shop") || "";
+
+  const { shop, subscriptionStatus } = useLoaderData();
+  const needsBilling = subscriptionStatus !== "ACTIVE";
+  const shopParam = shop || shopFromQs;
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
@@ -86,33 +102,34 @@ export default function Panel() {
         dangerouslySetInnerHTML={{ __html: t.guideHtml }}
       />
 
-      {/* CTA de suscripción (sale del iframe con target="_top") */}
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
-        <p style={{ marginTop: 0, marginBottom: 8, color: "#374151", fontSize: 14 }}>
-          ¿Quieres activar la suscripción para habilitar todas las funciones?
-        </p>
-        <form
-          action={`/api/billing/start?shop=${encodeURIComponent(shop)}`}
-          method="post"
-          target="_top"
-        >
-          <button
-            type="submit"
-            disabled={!shop}
-            title={shop ? "Abrir checkout de suscripción" : "Falta el parámetro ?shop en la URL"}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              background: "#f9fafb",
-              cursor: shop ? "pointer" : "not-allowed"
-            }}
+      {/* CTA solo si la suscripción NO está activa */}
+      {needsBilling && (
+        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 }}>
+          <p style={{ marginTop: 0, marginBottom: 8, color: "#374151", fontSize: 14 }}>
+            ¿Quieres activar la suscripción para habilitar todas las funciones?
+          </p>
+          <form
+            action={`/api/billing/start?shop=${encodeURIComponent(shopParam)}`}
+            method="post"
+            target="_top"
           >
-            Activar suscripción
-          </button>
-        </form>
-      </div>
+            <button
+              type="submit"
+              disabled={!shopParam}
+              title={shopParam ? "Abrir checkout de suscripción" : "Falta el parámetro ?shop en la URL"}
+              style={{
+                padding: "8px 12px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                background: "#f9fafb",
+                cursor: shopParam ? "pointer" : "not-allowed"
+              }}
+            >
+              Activar suscripción
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
-
