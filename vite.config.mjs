@@ -1,5 +1,6 @@
 // vite.config.mjs
 import { defineConfig } from "vite";
+import { vercelPreset } from "@vercel/remix/vite";
 import path from "node:path";
 
 // ⚠️ Import interop que funciona aunque @remix-run/dev sea CJS
