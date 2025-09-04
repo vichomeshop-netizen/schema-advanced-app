@@ -2,7 +2,7 @@
 
 client_id = "a9fbe1c16d3db5f58aa444bff1eb98e9"
 name = "schema-advanced-app"
-application_url = "https://prices-pamela-lake-listen.trycloudflare.com"
+application_url = "https://polls-indexes-two-mhz.trycloudflare.com"
 embedded = true
 handle = "schema-advanced-app"
 
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://prices-pamela-lake-listen.trycloudflare.com/auth/callback", "https://prices-pamela-lake-listen.trycloudflare.com/auth/shopify/callback", "https://prices-pamela-lake-listen.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://polls-indexes-two-mhz.trycloudflare.com/auth/callback", "https://polls-indexes-two-mhz.trycloudflare.com/auth/shopify/callback", "https://polls-indexes-two-mhz.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
