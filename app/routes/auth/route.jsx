@@ -1,24 +1,9 @@
+// app/routes/auth/route.jsx
 import { redirect, json } from "@remix-run/node";
-import crypto from "node:crypto";
-
-// Memoria global para estados (sobrevive hot-reload/cold-start en el mismo worker)
-const g = globalThis;
-g.__SAE_OAUTH_STATES__ ??= new Map(); // key = state, value = { shop, ts }
+import { makeState, setStateCookieHeader } from "~/lib/state.server";
 
 const ABS = (p) =>
   (process.env.APP_URL?.replace(/\/+$/, "") || "") + (p.startsWith("/") ? p : `/${p}`);
-
-function setStateCookie(state, maxAge = 300) {
-  // Host-only cookie (sin Domain) + Secure + Lax: suficiente para callback top-level
-  return [
-    `sae_state=${state}`,
-    "Path=/",
-    "HttpOnly",
-    "Secure",
-    "SameSite=Lax",
-    `Max-Age=${maxAge}`,
-  ].join("; ");
-}
 
 function respondHTML(html) {
   return new Response("<!doctype html>" + html, {
@@ -60,9 +45,9 @@ export async function loader({ request }) {
 </body></html>`);
   }
 
-  // 2) Genera y guarda state (en memoria) + cookie propia
-  const state = crypto.randomUUID();
-  g.__SAE_OAUTH_STATES__.set(state, { shop, ts: Date.now() });
+  // 2) Genera state firmado y setéalo en cookie (solo el valor viaja en la URL)
+  const stateRaw = makeState();             // p.ej. "<uuid>.<firma>"
+  const statePublic = stateRaw.split(".")[0];
 
   const clientId = process.env.SHOPIFY_API_KEY || "";
   const scopes = (process.env.SCOPES || "").trim();
@@ -75,19 +60,20 @@ export async function loader({ request }) {
     );
   }
 
-  // 3) Redirige a Shopify con state propio
+  // 3) Redirige a Shopify con el state público y envía la cookie firmada
   const authUrl =
     `https://${shop}/admin/oauth/authorize` +
     `?client_id=${encodeURIComponent(clientId)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&state=${encodeURIComponent(state)}`;
+    `&state=${encodeURIComponent(statePublic)}`;
 
   const headers = new Headers();
-  headers.append("Set-Cookie", setStateCookie(state));
+  headers.append("Set-Cookie", setStateCookieHeader(stateRaw)); // HttpOnly; Secure; SameSite=Lax; Max-Age=300
   return redirect(authUrl, { headers });
 }
 // (resource route: sin export default)
+
 
 
 

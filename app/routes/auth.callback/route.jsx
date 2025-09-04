@@ -1,20 +1,14 @@
+// app/routes/auth.callback/route.jsx
 import { redirect, json } from "@remix-run/node";
 import crypto from "node:crypto";
 import { db } from "~/lib/db.server";
+import {
+  readStateCookie,
+  verifyState,
+  clearStateCookieHeader,
+} from "~/lib/state.server";
 
-const g = globalThis;
-g.__SAE_OAUTH_STATES__ ??= new Map();
-
-function parseCookies(cookieHeader = "") {
-  const out = {};
-  cookieHeader.split(";").forEach((p) => {
-    const [k, ...v] = p.trim().split("=");
-    if (!k) return;
-    out[k] = decodeURIComponent(v.join("="));
-  });
-  return out;
-}
-
+// Igual que ya tienes: verificación HMAC de Shopify
 function verifyHmac(searchParams, secret) {
   const entries = [];
   for (const [k, v] of searchParams) {
@@ -33,22 +27,27 @@ function verifyHmac(searchParams, secret) {
 export async function loader({ request }) {
   const url = new URL(request.url);
 
+  // Debug opcional
   if (url.searchParams.get("__debug") === "1") {
     return json({
       ok: true,
       route: "/auth/callback",
       received: Object.fromEntries(url.searchParams.entries()),
       cookies: request.headers.get("cookie") || "",
-    });
+    }, { headers: { "cache-control": "no-store" }});
   }
 
   const shop = url.searchParams.get("shop");
   const code = url.searchParams.get("code");
   const hmac = url.searchParams.get("hmac");
   const state = url.searchParams.get("state");
-
   if (!shop || !code || !hmac || !state) {
     return json({ ok: false, message: "Faltan parámetros" }, { status: 400 });
+  }
+
+  // (Opcional) endurecer shop
+  if (!/^[a-z0-9-]+\.myshopify\.com$/i.test(shop)) {
+    return json({ ok:false, message:"Shop inválido" }, { status: 400 });
   }
 
   // 1) HMAC
@@ -57,12 +56,9 @@ export async function loader({ request }) {
     return json({ ok: false, message: "HMAC inválido" }, { status: 401 });
   }
 
-  // 2) STATE (acepta cookie o registro en memoria)
-  const cookieState = parseCookies(request.headers.get("cookie")).sae_state;
-  const record = g.__SAE_OAUTH_STATES__.get(state);
-  g.__SAE_OAUTH_STATES__.delete(state);
-
-  if (!(cookieState === state || (record && record.shop === shop))) {
+  // 2) STATE: cookie firmada (sin Map)
+  const rawCookieState = readStateCookie(request);   // p.ej. "<uuid>.<firma>"
+  if (!verifyState(rawCookieState, state)) {
     return json({ ok: false, message: "State inválido" }, { status: 401 });
   }
 
@@ -89,11 +85,15 @@ export async function loader({ request }) {
 
   // 4) Limpia cookie y redirige al panel
   const headers = new Headers();
-  headers.append("Set-Cookie", "sae_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+  headers.append("Set-Cookie", clearStateCookieHeader());
 
   const host = url.searchParams.get("host");
-  return redirect(`/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`, { headers });
+  return redirect(
+    `/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`,
+    { headers }
+  );
 }
 // (resource route: sin export default)
+
 
 
