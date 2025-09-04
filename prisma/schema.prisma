@@ -24,8 +24,23 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
 
   @@index([shop])
   @@index([userId])
+}
+
+model Shop {
+  id                 String    @id @default(cuid())
+  shop               String    @unique
+  accessToken        String
+  scope              String    @default("")
+  installedAt        DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  subscriptionId     String?
+  subscriptionStatus String?
+  planName           String?
+  trialEndsAt        DateTime?
+  lastScanAt         DateTime?
+  featuresJson       Json?
 }
