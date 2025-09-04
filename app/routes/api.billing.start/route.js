@@ -53,15 +53,18 @@ async function isDevShop(shop, accessToken) {
 async function start(request) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
+  const host = url.searchParams.get("host") || ""; // ⬅️ NUEVO
   if (!shop) return json({ error: "missing shop" }, 400);
 
   const s = await getShop(shop);
   if (!s?.accessToken) return json({ error: "no token" }, 401);
 
+  // volver embebido al panel
+  const baseReturn = `${url.origin}/app?shop=${encodeURIComponent(shop)}`;
   const returnUrl =
-    process.env.BILLING_RETURN_URL || `${url.origin}/app?shop=${encodeURIComponent(shop)}`;
+    process.env.BILLING_RETURN_URL ||
+    (host ? `${baseReturn}&host=${encodeURIComponent(host)}&embedded=1` : baseReturn);
 
-  // TEST MODE si tienda dev o forzado por env
   const TEST_MODE =
     (await isDevShop(shop, s.accessToken)) || process.env.BILLING_TEST === "1";
 
@@ -74,7 +77,7 @@ async function start(request) {
         plan: {
           appRecurringPricingDetails: {
             price: { amount: 9.99, currencyCode: "EUR" },
-            // interval: "EVERY_30_DAYS", // descomenta si tu versión lo exige
+            // interval: "EVERY_30_DAYS",
           },
         },
       },
@@ -85,12 +88,8 @@ async function start(request) {
   const data = await adminGraphql(shop, s.accessToken, MUTATION, vars);
   const out = data?.data?.appSubscriptionCreate;
 
-  // Si Shopify devolvió errores de negocio
   if (out?.userErrors?.length) {
     const msg = out.userErrors.map((e) => e.message).join("; ").toLowerCase();
-
-    // Fallback: si ya hay una suscripción activa y Shopify no nos da confirmationUrl,
-    // volvemos al panel (el loader hará check en vivo / webhook hará sync)
     if (msg.includes("active subscription") || msg.includes("already")) {
       return redirect(returnUrl);
     }
@@ -98,19 +97,9 @@ async function start(request) {
   }
 
   const confirmationUrl = out?.confirmationUrl;
-  if (!confirmationUrl) {
-    // Último recurso: volver al panel
-    return redirect(returnUrl);
-  }
-
+  if (!confirmationUrl) return redirect(returnUrl);
   return redirect(confirmationUrl);
 }
 
-export async function action({ request }) {
-  return start(request);
-}
-
-// Permitimos GET para auto-redirect (sin botón)
-export async function loader({ request }) {
-  return start(request);
-}
+export async function action({ request }) { return start(request); }
+export async function loader({ request }) { return start(request); } // GET auto-redirect

@@ -41,7 +41,10 @@ export async function loader({ request }) {
 
   if (status !== "ACTIVE") {
     // Redirección automática a la pantalla de suscripción (GET soportado)
-    throw redirect(`/api/billing/start?shop=${encodeURIComponent(shop)}`);
+  const q = new URLSearchParams({ shop });
+ const host = url.searchParams.get("host") || "";
+ if (host) q.set("host", host);
+ throw redirect(`/api/billing/start?${q.toString()}`);
   }
 
   return json({ shop, subscriptionStatus: status });
