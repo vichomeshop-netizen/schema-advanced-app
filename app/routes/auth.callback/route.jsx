@@ -12,6 +12,7 @@ import {
 const APP_URL = (process.env.APP_URL || "").replace(/\/+$/, "");
 const API_KEY = process.env.SHOPIFY_API_KEY || "";
 const API_SECRET = process.env.SHOPIFY_API_SECRET || "";
+const API_VER = process.env.SHOPIFY_API_VERSION || "2025-07";
 
 // ---- HMAC de OAuth (HEX, no base64) ----
 function verifyOAuthHmac(searchParams) {
@@ -33,6 +34,37 @@ function verifyOAuthHmac(searchParams) {
   } catch {
     return false;
   }
+}
+
+// 👇 Mira en vivo si ya hay una suscripción activa
+async function probeActiveSubscription(shop, accessToken) {
+  try {
+    const q = `query {
+      currentAppInstallation {
+        activeSubscriptions { id name status }
+      }
+    }`;
+    const r = await fetch(`https://${shop}/admin/api/${API_VER}/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({ query: q }),
+    });
+    const j = await r.json();
+    const sub = j?.data?.currentAppInstallation?.activeSubscriptions?.[0];
+    if (sub?.status === "ACTIVE") {
+      return {
+        subscriptionStatus: "ACTIVE",
+        subscriptionId: String(sub.id).replace(/^gid:\/\/shopify\/AppSubscription\//, ""),
+        planName: sub.name,
+      };
+    }
+  } catch {
+    // ignoramos; caeremos en INACTIVE
+  }
+  return { subscriptionStatus: "INACTIVE", subscriptionId: null, planName: null };
 }
 
 export async function loader({ request }) {
@@ -102,8 +134,9 @@ export async function loader({ request }) {
     return json({ ok: false, message: "Falta access_token" }, { status: 500 });
   }
 
-  // 4) Guarda/actualiza tienda (idempotente)
-  await upsertShop({ shop, accessToken, scope });
+  // 4) Mira el estado real de la suscripción y guarda todo de forma idempotente
+  const statusData = await probeActiveSubscription(shop, accessToken);
+  await upsertShop({ shop, accessToken, scope, ...statusData });
 
   // 5) Registra webhooks "de app" de forma idempotente
   try {
@@ -120,6 +153,7 @@ export async function loader({ request }) {
 }
 
 export const action = loader;
+
 
 
 
