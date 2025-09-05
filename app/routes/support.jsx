@@ -1,9 +1,8 @@
-
 // app/routes/support.jsx
 import { useEffect, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
 
-const EMAIL = "soporte@vichome.es";
+const EMAIL = "contacto@vichomeshop.com";
 
 const STR = {
   en: {
@@ -17,6 +16,7 @@ const STR = {
     ],
     contactTitle: "Contact",
     contactText: `Write us at <a href="mailto:${EMAIL}">${EMAIL}</a> with your shop URL and a brief description.`,
+    note: `We continuously research the newest <strong>Schema.org</strong> fields. If any markup gives you trouble or you need a specific property/type, please contact us at <a href="mailto:${EMAIL}">${EMAIL}</a>.`,
     footer: { privacy: "Privacy", terms: "Terms", support: "Support" },
     lang: "Language",
   },
@@ -31,6 +31,7 @@ const STR = {
     ],
     contactTitle: "Contacto",
     contactText: `Escríbenos a <a href="mailto:${EMAIL}">${EMAIL}</a> con la URL de tu tienda y una breve descripción.`,
+    note: `Estamos siempre estudiando los campos más recientes de <strong>Schema.org</strong>. Si algún marcado te da problemas o necesitas algún campo/tipo específico, contáctanos en <a href="mailto:${EMAIL}">${EMAIL}</a>.`,
     footer: { privacy: "Privacidad", terms: "Términos", support: "Soporte" },
     lang: "Idioma",
   },
@@ -45,6 +46,7 @@ const STR = {
     ],
     contactTitle: "Contato",
     contactText: `Escreva para <a href="mailto:${EMAIL}">${EMAIL}</a> com a URL da loja e uma breve descrição.`,
+    note: `Estamos sempre acompanhando os campos mais recentes do <strong>Schema.org</strong>. Se algum markup causar problemas ou você precisar de alguma propriedade/tipo específico, fale conosco em <a href="mailto:${EMAIL}">${EMAIL}</a>.`,
     footer: { privacy: "Privacidade", terms: "Termos", support: "Suporte" },
     lang: "Idioma",
   },
@@ -113,6 +115,7 @@ export default function Support() {
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 20, marginBottom: 8 }}>{t.contactTitle}</h2>
         <p dangerouslySetInnerHTML={{ __html: t.contactText }} />
+        <p style={{ marginTop: 8, color: "#374151" }} dangerouslySetInnerHTML={{ __html: t.note }} />
       </section>
 
       <footer style={{ marginTop: 32, color: "#6b7280" }}>
@@ -123,3 +126,4 @@ export default function Support() {
     </main>
   );
 }
+

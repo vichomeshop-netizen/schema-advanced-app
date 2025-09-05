@@ -48,65 +48,60 @@
 {%- endcase -%}
 
 
-
 {%- comment -%} ====== Organization (todas las páginas) ====== {%- endcomment -%}
 {%- assign _public_email = block.settings.org_email | default: shop.customer_email | default: shop.email -%}
 
-{%- comment -%} sameAs simple: separa por espacios, comas o saltos de línea; añade https://; deduplica {%- endcomment -%}
+{%- comment -%} sameAs: admite coma o espacio como separador; añade https:// si falta; deduplica {%- endcomment -%}
 {%- assign _sameas_raw = block.settings.org_sameas | default: '' -%}
-
-{%- comment -%} Normaliza separadores: \r\n, \n, \r y comas -> espacio {%- endcomment -%}
-{%- assign _norm = _sameas_raw
-  | replace: '\r\n', ' '
-  | replace: '\n',   ' '
-  | replace: '\r',   ' '
-  | replace: ',',    ' '
--%}
-{%- comment -%} Colapsa espacios dobles varias veces para evitar tokens vacíos {%- endcomment -%}
-{%- assign _norm = _norm
-  | replace: '  ', ' '
-  | replace: '  ', ' '
-  | replace: '  ', ' '
-  | strip
--%}
-
-{%- assign _tokens = _norm | split: ' ' -%}
+{%- if _sameas_raw contains ',' -%}
+  {%- assign _sameas_parts = _sameas_raw | split: ',' -%}
+{%- else -%}
+  {%- assign _sameas_parts = _sameas_raw | split: ' ' -%}
+{%- endif -%}
 {%- assign _sameas_items = '' -%}
-{%- assign _first = true -%}
-{%- assign _seen  = '' -%}
-
-{%- for t in _tokens -%}
-  {%- assign u = t | strip -%}
-  {%- if u != '' -%}
-    {%- assign u = u | remove: '"' | remove: "'" -%}
-    {%- if u contains '://' -%}
-      {%- assign u_full = u -%}
-    {%- else -%}
-      {%- assign u_full = 'https://' | append: u -%}
-    {%- endif -%}
-    {%- assign u_full = u_full | strip -%}
-    {%- assign _needle = '|' | append: u_full | append: '|' -%}
-    {%- unless _seen contains _needle -%}
-      {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _first %},{% endunless %}{{ u_full | json | replace: '\/','/' }}{%- endcapture -%}
-      {%- assign _first = false -%}
-      {%- assign _seen = _seen | append: _needle -%}
-    {%- endunless -%}
+{%- assign _same_seen = '|' -%}
+{%- assign _same_first = true -%}
+{%- for t in _sameas_parts -%}
+  {%- assign u = t | strip | remove: '"' | remove: "'" -%}
+  {%- if u == '' -%}{%- continue -%}{%- endif -%}
+  {%- if u contains '://' -%}
+    {%- assign u_full = u -%}
+  {%- else -%}
+    {%- assign u_full = 'https://' | append: u -%}
   {%- endif -%}
+  {%- assign needle = '|' | append: u_full | append: '|' -%}
+  {%- if _same_seen contains needle -%}{%- continue -%}{%- endif -%}
+  {%- assign _same_seen = _same_seen | append: u_full | append: '|' -%}
+  {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _same_first %},{% endunless %}{{ u_full | json }}{%- endcapture -%}
+  {%- assign _same_first = false -%}
 {%- endfor -%}
 
-{%- assign _area_codes = block.settings.shipping_countries | default: 'ES,PT' | split: ',' -%}
-{%- assign _area_json = '' -%}
-{%- for c in _area_codes -%}
-  {%- assign _cc = c | strip | upcase -%}
-  {%- if _cc != '' -%}
-    {%- if _area_json != '' -%}{%- assign _area_json = _area_json | append: ',' -%}{%- endif -%}
-    {%- assign _area_json = _area_json | append: _cc | json -%}
-  {%- endif -%}
+{%- comment -%} Countries: lee shipping_countries (block o section), normaliza alias y deduplica {%- endcomment -%}
+{%- assign _ship_raw = block.settings.shipping_countries | default: section.settings.shipping_countries | default: '' -%}
+{%- assign _ship_compact = _ship_raw | upcase | replace: ' ', '' -%}
+{%- assign _ship_parts = _ship_compact | split: ',' -%}
+{%- assign _codes_seen = '|' -%}
+{%- assign _codes_list = '' -%}
+{%- assign _codes_first = true -%}
+{%- for p in _ship_parts -%}
+  {%- assign code = p | strip -%}
+  {%- if code == '' -%}{%- continue -%}{%- endif -%}
+  {%- case code -%}
+    {%- when 'UK','EN','ENG','EN-GB' -%}{%- assign code = 'GB' -%}
+    {%- when 'EN-US' -%}{%- assign code = 'US' -%}
+    {%- when 'ES-ES' -%}{%- assign code = 'ES' -%}
+    {%- when 'PT-PT' -%}{%- assign code = 'PT' -%}
+    {%- when 'PT-BR' -%}{%- assign code = 'BR' -%}
+    {%- when 'EL' -%}{%- assign code = 'GR' -%}
+  {%- endcase -%}
+  {%- assign k = '|' | append: code | append: '|' -%}
+  {%- if _codes_seen contains k -%}{%- continue -%}{%- endif -%}
+  {%- assign _codes_seen = _codes_seen | append: code | append: '|' -%}
+  {%- capture _codes_list -%}{{ _codes_list }}{% unless _codes_first %},{% endunless %}{{ code | json }}{%- endcapture -%}
+  {%- assign _codes_first = false -%}
 {%- endfor -%}
 
 <script type="application/ld+json" data-sae="1">
-{%- assign sameas = block.settings.same_as | default: '' | split: ',' | map: 'strip' | reject: '' -%}
-{%- assign areas_raw = block.settings.area_served | default: '' | split: ',' | map: 'strip' | reject: '' -%}
 {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -115,8 +110,8 @@
   "name": {{ shop.name | json }},
   "legalName": {{ shop.name | json }}{% if block.settings.org_logo %}
   ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json }}
-  ,"image": { "@type":"ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json }} }{% endif %}{% if sameas.size > 0 %}
-  ,"sameAs": {{ sameas | json }}{% endif %}
+  ,"image": { "@type": "ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json }} }{% endif %}{% if _sameas_items != '' %}
+  ,"sameAs": [ {{ _sameas_items }} ]{% endif %}
   ,"email": {{ _public_email | json }}
   ,"contactPoint": {
     "@type": "ContactPoint",
@@ -130,22 +125,21 @@
     "addressLocality": {{ block.settings.address_city | json }}{% endif %}{% if block.settings.address_postal and block.settings.address_postal != '' %},
     "postalCode": {{ block.settings.address_postal | json }}{% endif %}{% if block.settings.address_country and block.settings.address_country != '' %},
     "addressCountry": {{ block.settings.address_country | upcase | json }}{% endif %}
-  }{% if areas_raw.size > 0 %}
-  ,"areaServed": [
-    {%- for c in areas_raw -%}
-      {{ c | upcase | json }}{%- unless forloop.last -%},{%- endunless -%}
-    {%- endfor -%}
-  ]{% endif %}
+  }{% if _codes_list != '' %}
+  ,"areaServed": [ {{ _codes_list }} ]{% endif %}
   ,"hasMerchantReturnPolicy": {
     "@type": "MerchantReturnPolicy",
     "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
     "merchantReturnDays": {{ block.settings.returns_days | default: 30 | times: 1 }},
     "refundType": "https://schema.org/FullRefund",
     "returnMethod": "https://schema.org/ReturnByMail",
-    "returnFees": "https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"
+    "returnFees": "https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"{% if _codes_list != '' %}
+    ,"applicableCountry": [ {{ _codes_list }} ]{% endif %}
   }
 }
 </script>
+
+
 
 
 {%- comment -%} ====== WebSite (opcional solo en home) ====== {%- endcomment -%}
