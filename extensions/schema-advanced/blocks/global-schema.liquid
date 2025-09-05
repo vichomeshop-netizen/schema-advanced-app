@@ -105,16 +105,18 @@
 {%- endfor -%}
 
 <script type="application/ld+json" data-sae="1">
+{%- assign sameas = block.settings.same_as | default: '' | split: ',' | map: 'strip' | reject: '' -%}
+{%- assign areas_raw = block.settings.area_served | default: '' | split: ',' | map: 'strip' | reject: '' -%}
 {
-  "@context":"https://schema.org",
-  "@type":"Organization",
-  "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }},
-  "url": {{ shop.url | json | replace: '\/','/' }},
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": {{ shop.url | append: "#org" | json }},
+  "url": {{ shop.url | json }},
   "name": {{ shop.name | json }},
   "legalName": {{ shop.name | json }}{% if block.settings.org_logo %}
-  ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json | replace: '\/','/' }}
-  ,"image": { "@type":"ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}{% if _sameas_items != '' %}
-  ,"sameAs": [ {{ _sameas_items }} ]{% endif %}
+  ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json }}
+  ,"image": { "@type":"ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json }} }{% endif %}{% if sameas.size > 0 %}
+  ,"sameAs": {{ sameas | json }}{% endif %}
   ,"email": {{ _public_email | json }}
   ,"contactPoint": {
     "@type": "ContactPoint",
@@ -127,19 +129,24 @@
     "streetAddress": {{ block.settings.address_street | json }}{% endif %}{% if block.settings.address_city and block.settings.address_city != '' %},
     "addressLocality": {{ block.settings.address_city | json }}{% endif %}{% if block.settings.address_postal and block.settings.address_postal != '' %},
     "postalCode": {{ block.settings.address_postal | json }}{% endif %}{% if block.settings.address_country and block.settings.address_country != '' %},
-    "addressCountry": { "@type": "Country", "name": {{ block.settings.address_country | upcase | json }} }{% endif %}
-  }
-  ,"areaServed": [ {{ _area_json }} ]
+    "addressCountry": {{ block.settings.address_country | upcase | json }}{% endif %}
+  }{% if areas_raw.size > 0 %}
+  ,"areaServed": [
+    {%- for c in areas_raw -%}
+      {{ c | upcase | json }}{%- unless forloop.last -%},{%- endunless -%}
+    {%- endfor -%}
+  ]{% endif %}
   ,"hasMerchantReturnPolicy": {
     "@type": "MerchantReturnPolicy",
     "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-    "merchantReturnDays": {{ block.settings.returns_days | default: 30 }},
+    "merchantReturnDays": {{ block.settings.returns_days | default: 30 | times: 1 }},
     "refundType": "https://schema.org/FullRefund",
     "returnMethod": "https://schema.org/ReturnByMail",
     "returnFees": "https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"
   }
 }
 </script>
+
 
 {%- comment -%} ====== WebSite (opcional solo en home) ====== {%- endcomment -%}
 {%- assign _emit_website = true -%}
