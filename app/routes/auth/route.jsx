@@ -13,7 +13,7 @@ function respondHTML(html) {
 }
 
 function parseScopes(s) {
-  return new Set((s || "").split(",").map(x => x.trim()).filter(Boolean));
+  return new Set((s || "").split(",").map((x) => x.trim()).filter(Boolean));
 }
 
 function b64urlDecode(s = "") {
@@ -31,6 +31,7 @@ export async function loader({ request }) {
   let shop = url.searchParams.get("shop") || "";
   const embedded = url.searchParams.get("embedded") === "1";
   const host = url.searchParams.get("host") || "";
+  const isTopHop = url.searchParams.get("__top") === "1";
 
   // ── DEBUG OPCIONAL ─────────────────────────────────────────────────────────────
   if (url.searchParams.get("__debug") === "1") {
@@ -44,28 +45,35 @@ export async function loader({ request }) {
       "SESSION_SECRET",
     ];
     const envStatus = Object.fromEntries(req.map((k) => [k, process.env[k] ? "set" : "MISSING"]));
-    return json({ ok: true, route: "/auth", shop, embedded, host, envStatus });
+    return json({ ok: true, route: "/auth", shop, embedded, host, isTopHop, envStatus });
   }
 
   // 0) Si no viene ?shop= pero sí ?host= (Dev Panel / App Bridge), derivamos shop del host (base64url)
   if (!shop && host) {
-    const decoded = b64urlDecode(host); // ej: "vichome-dev.myshopify.com/admin"
-    const m = decoded.match(/^([a-z0-9-]+\.myshopify\.com)\b/i);
-    if (m) shop = m[1];
+    const decoded = b64urlDecode(host); // ej: "vichome-dev.myshopify.com/admin" o "admin.shopify.com/store/xxx"
+    const mSub = decoded.match(/^([a-z0-9-]+\.myshopify\.com)\b/i);
+    if (mSub) shop = mSub[1];
   }
 
   if (!shop || !/^[a-z0-9-]+\.myshopify\.com$/i.test(shop)) {
     return new Response('Falta ?shop=mi-tienda.myshopify.com', { status: 400 });
   }
 
-  // 1) Si venimos embebidos (o con host), saca la navegación a top-level manteniendo shop & host
-  if (embedded || host) {
-    const topUrl = ABS(`/auth?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`);
+  // 1) Trampolín a top-level (solo una vez). Evita bucles con __top=1
+  if ((embedded || host) && !isTopHop) {
+    const topUrl =
+      ABS(`/auth?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}&__top=1`);
     return respondHTML(`
 <html><body>
 <script>
   var t=${JSON.stringify(topUrl)};
-  if (window.top===window.self) location.href=t; else window.top.location.href=t;
+  // Si estamos embebidos, subimos al top
+  if (window.top !== window.self) {
+    window.top.location.href = t;
+  } else {
+    // Ya estamos en top-level: recarga con __top=1 para que el servidor siga el flujo normal
+    location.href = t;
+  }
 </script>
 </body></html>`);
   }
@@ -81,7 +89,7 @@ export async function loader({ request }) {
       } else if (s?.scope) {
         const current = parseScopes(s.scope);
         // needsReauth si algún scope requerido NO está en current
-        needsReauth = [...required].some(req => !current.has(req));
+        needsReauth = [...required].some((req) => !current.has(req));
       }
     }
   } catch {
@@ -94,11 +102,11 @@ export async function loader({ request }) {
   }
 
   // 3) Genera state firmado y setéalo en cookie (sólo el valor público viaja en la URL)
-  const stateRaw = makeState();            // p.ej. "<uuid>.<firma>"
+  const stateRaw = makeState(); // p.ej. "<uuid>.<firma>"
   const statePublic = stateRaw.split(".")[0];
 
   const clientId = process.env.SHOPIFY_API_KEY || "";
-  const scopes = [...required].join(",");  // usa los scopes de ENV normalizados (puede ser "")
+  const scopes = [...required].join(","); // usa los scopes de ENV normalizados (puede ser "")
   const redirectUri = ABS("/auth/callback");
 
   if (!clientId || !redirectUri) {
@@ -124,7 +132,9 @@ export async function loader({ request }) {
   headers.append("Set-Cookie", setStateCookieHeader(stateRaw)); // HttpOnly; Secure; SameSite=(según tu helper); Max-Age=300
   return redirect(authUrl, { headers });
 }
+
 // (resource route: sin export default)
+
 
 
 

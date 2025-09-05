@@ -1,7 +1,7 @@
 // app/routes/auth.callback/route.jsx
 import { redirect, json } from "@remix-run/node";
 import crypto from "node:crypto";
-import { upsertShop } from "~/lib/shop.server";
+import { upsertShop, getShop } from "~/lib/shop.server";
 import { ensureWebhooks } from "~/lib/ensure-webhooks.server";
 import {
   readStateCookie,
@@ -36,33 +36,6 @@ function verifyOAuthHmac(searchParams) {
   }
 }
 
-// Mira en vivo si ya hay una suscripción activa
-async function probeActiveSubscription(shop, accessToken) {
-  try {
-    const q = `query {
-      currentAppInstallation { activeSubscriptions { id name status } }
-    }`;
-    const r = await fetch(`https://${shop}/admin/api/${API_VER}/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken,
-      },
-      body: JSON.stringify({ query: q }),
-    });
-    const j = await r.json();
-    const sub = j?.data?.currentAppInstallation?.activeSubscriptions?.[0];
-    if (sub?.status === "ACTIVE") {
-      return {
-        subscriptionStatus: "ACTIVE",
-        subscriptionId: String(sub.id).replace(/^gid:\/\/shopify\/AppSubscription\//, ""),
-        planName: sub.name,
-      };
-    }
-  } catch {}
-  return { subscriptionStatus: "INACTIVE", subscriptionId: null, planName: null };
-}
-
 export async function loader({ request }) {
   const url   = new URL(request.url);
   const shop  = url.searchParams.get("shop") || "";
@@ -82,7 +55,7 @@ export async function loader({ request }) {
     }, { headers: { "cache-control": "no-store" } });
   }
 
-  // ⬇️ Fallback: si el callback llega sin `code`, vuelve a /auth para reiniciar OAuth
+  // Fallback: si el callback llega sin `code`, vuelve a /auth para reiniciar OAuth
   if (!code) {
     const qs = new URLSearchParams();
     if (shop) qs.set("shop", shop);
@@ -139,8 +112,14 @@ export async function loader({ request }) {
     return json({ ok: false, message: "Falta access_token" }, { status: 500 });
   }
 
-  // 4) Sincroniza estado real de la suscripción y guarda idempotente
-  const statusData = await probeActiveSubscription(shop, accessToken);
+  // 4) Decide el estado tras OAuth:
+  //    - Si NO hay registro previo o NO era ACTIVE → forzamos INACTIVE (pasará por billing)
+  //    - Si ya era ACTIVE → mantenemos ACTIVE (no mandamos a billing)
+  const rec = await getShop(shop);
+  const statusData = (!rec || rec.subscriptionStatus !== "ACTIVE")
+    ? { subscriptionStatus: "INACTIVE", subscriptionId: null, planName: null }
+    : { subscriptionStatus: "ACTIVE", subscriptionId: rec.subscriptionId, planName: rec.planName };
+
   await upsertShop({ shop, accessToken, scope, ...statusData });
 
   // 5) Registra webhooks "de app" (idempotente)
