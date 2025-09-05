@@ -21,7 +21,7 @@ function verifyOAuthHmac(searchParams) {
     if (k === "hmac" || k === "signature") continue;
     entries.push(`${k}=${v}`);
   }
-  entries.sort(); // orden lexicográfico por clave
+  entries.sort();
   const message = entries.join("&");
 
   const digestHex = crypto.createHmac("sha256", API_SECRET).update(message).digest("hex");
@@ -36,13 +36,11 @@ function verifyOAuthHmac(searchParams) {
   }
 }
 
-// 👇 Mira en vivo si ya hay una suscripción activa
+// Mira en vivo si ya hay una suscripción activa
 async function probeActiveSubscription(shop, accessToken) {
   try {
     const q = `query {
-      currentAppInstallation {
-        activeSubscriptions { id name status }
-      }
+      currentAppInstallation { activeSubscriptions { id name status } }
     }`;
     const r = await fetch(`https://${shop}/admin/api/${API_VER}/graphql.json`, {
       method: "POST",
@@ -61,9 +59,7 @@ async function probeActiveSubscription(shop, accessToken) {
         planName: sub.name,
       };
     }
-  } catch {
-    // ignoramos; caeremos en INACTIVE
-  }
+  } catch {}
   return { subscriptionStatus: "INACTIVE", subscriptionId: null, planName: null };
 }
 
@@ -86,7 +82,16 @@ export async function loader({ request }) {
     }, { headers: { "cache-control": "no-store" } });
   }
 
-  if (!shop || !code) {
+  // ⬇️ Fallback: si el callback llega sin `code`, vuelve a /auth para reiniciar OAuth
+  if (!code) {
+    const qs = new URLSearchParams();
+    if (shop) qs.set("shop", shop);
+    if (host) qs.set("host", host);
+    return redirect(`${APP_URL}/auth${qs.toString() ? `?${qs.toString()}` : ""}`);
+  }
+
+  // Validaciones mínimas
+  if (!shop) {
     return json({ ok: false, message: "Faltan parámetros", shop, codePresent: Boolean(code) }, { status: 400 });
   }
   if (!/^[a-z0-9-]+\.myshopify\.com$/i.test(shop)) {
@@ -102,7 +107,7 @@ export async function loader({ request }) {
   }
 
   // 2) Verifica CSRF state con tu cookie firmada
-  const cookieStateRaw = readStateCookie(request); // p.ej. "<uuid>.<firma>"
+  const cookieStateRaw = readStateCookie(request); // "<uuid>.<firma>"
   if (!verifyState(cookieStateRaw, state)) {
     return new Response("unauthorized", { status: 401 });
   }
@@ -134,11 +139,11 @@ export async function loader({ request }) {
     return json({ ok: false, message: "Falta access_token" }, { status: 500 });
   }
 
-  // 4) Mira el estado real de la suscripción y guarda todo de forma idempotente
+  // 4) Sincroniza estado real de la suscripción y guarda idempotente
   const statusData = await probeActiveSubscription(shop, accessToken);
   await upsertShop({ shop, accessToken, scope, ...statusData });
 
-  // 5) Registra webhooks "de app" de forma idempotente
+  // 5) Registra webhooks "de app" (idempotente)
   try {
     await ensureWebhooks({ shop, accessToken, appUrl: APP_URL });
   } catch (e) {
@@ -153,6 +158,7 @@ export async function loader({ request }) {
 }
 
 export const action = loader;
+
 
 
 
