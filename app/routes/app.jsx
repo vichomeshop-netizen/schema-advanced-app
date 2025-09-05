@@ -248,6 +248,13 @@ export default function AppLayout() {
             {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
           </NavLink>
 
+	
+	<NavLink to={toWithSearch("localbusiness")}
+ 	 style={({ isActive }) => linkStyle(isActive)}>
+  	{lang === "pt" ? "Negócio local" : lang === "en" ? "Local business" : "Negocio local"}
+	</NavLink>
+
+
           <NavLink to={toWithSearch("blog")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
           </NavLink>

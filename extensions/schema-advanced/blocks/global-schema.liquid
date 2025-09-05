@@ -5,11 +5,11 @@
 
   Emite:
   • Organization (todas las páginas)
-  • WebSite (solo home si así lo configuras)
+  • WebSite (solo home)
   • BreadcrumbList simple (Home → Colección → Producto) — con toggle
   • Collection WebPage/CollectionPage + FAQPage (metafield o metaobjetos) — handle único `namespace.key` (p. ej. custom.faq)
   • Product (PDP) con Brand, GTIN/MPN, AggregateOffer/Offer, handling/transit/rate opcional, política de devoluciones
-  • BlogPosting (artículos) + HowTo autogenerado (≥2 H2, si está activado)
+  • BlogPosting (artículos) + HowTo autogenerado (≥2 H2)
   • ContactPage y AboutPage cuando aplique
 
   Además:
@@ -140,14 +140,74 @@
 </script>
 
 
+{%- comment -%} ====== LocalBusiness (hereda de Organization + extras simples) ====== {%- endcomment -%}
+{%- if block.settings.emit_localbusiness -%}
+  {%- if request.page_type == 'index' or template contains 'contact' or template contains 'about' -%}
+
+  {%- assign _lb_name    = block.settings.localbusiness_name | default: shop.name -%}
+  {%- assign _lb_phone   = block.settings.org_phone -%}
+  {%- assign _lb_email   = _public_email -%}
+  {%- assign _lb_street  = block.settings.address_street -%}
+  {%- assign _lb_city    = block.settings.address_city -%}
+  {%- assign _lb_postal  = block.settings.address_postal -%}
+  {%- assign _lb_country = block.settings.address_country | upcase -%}
+  {%- assign _lb_price   = block.settings.localbusiness_price_range | default: '' -%}
+  {%- assign _lb_gbp     = block.settings.localbusiness_gbp_url | to_string | strip -%}
+  {%- assign _lb_lat     = '' -%}
+  {%- assign _lb_lng     = '' -%}
+
+  {%- assign _geo = block.settings.localbusiness_geo_coords | to_string | strip -%}
+  {%- if _geo != '' and _geo contains ',' -%}
+    {%- assign _geo_parts = _geo | split: ',' -%}
+    {%- assign _lb_lat = _geo_parts[0] | strip -%}
+    {%- assign _lb_lng = _geo_parts[1] | strip -%}
+  {%- endif -%}
+
+<script type="application/ld+json" data-sae="1">
+{
+  "@context":"https://schema.org",
+  "@type":[
+    "LocalBusiness"
+    {%- if block.settings.localbusiness_type and block.settings.localbusiness_type != 'LocalBusiness' -%}
+    , {{ block.settings.localbusiness_type | json }}
+    {%- endif -%}
+  ],
+  "@id": {{ shop.url | append: "#local" | json | replace: '\/','/' }},
+  "url": {{ shop.url | json | replace: '\/','/' }},
+  "name": {{ _lb_name | json }},
+  {%- if _lb_phone and _lb_phone != '' -%}"telephone": {{ _lb_phone | json }},{%- endif -%}
+  {%- if _lb_email and _lb_email != '' -%}"email": {{ _lb_email | json }},{%- endif -%}
+  {%- if block.settings.org_logo -%}
+  "image": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }},
+  {%- endif -%}
+  "address": {
+    "@type":"PostalAddress"
+    {%- if _lb_street and _lb_street != '' -%}, "streetAddress": {{ _lb_street | json }}{%- endif -%}
+    {%- if _lb_city   and _lb_city   != '' -%}, "addressLocality": {{ _lb_city | json }}{%- endif -%}
+    {%- if _lb_postal and _lb_postal != '' -%}, "postalCode": {{ _lb_postal | json }}{%- endif -%}
+    {%- if _lb_country and _lb_country != '' -%}, "addressCountry": {{ _lb_country | json }}{%- endif -%}
+  }
+  {%- if _lb_gbp != '' -%},
+  "sameAs": [ {{ _lb_gbp | json }} ]
+  {%- endif -%}
+  {%- if _lb_lat != '' and _lb_lng != '' -%},
+  "geo": { "@type":"GeoCoordinates", "latitude": {{ _lb_lat | replace: ',', '.' }}, "longitude": {{ _lb_lng | replace: ',', '.' }} },
+  "hasMap": {{ "https://www.google.com/maps?q=" | append: _lb_lat | append: "," | append: _lb_lng | json }}
+  {%- elsif _lb_gbp != '' -%},
+  "hasMap": {{ _lb_gbp | json }}
+  {%- endif -%}
+  {%- if _lb_price != '' -%}, "priceRange": {{ _lb_price | json }}{%- endif -%},
+  "parentOrganization": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
+}
+</script>
+  {%- endif -%}
+{%- endif -%}    
 
 
-{%- comment -%} ====== WebSite (opcional solo en home) ====== {%- endcomment -%}
-{%- assign _emit_website = true -%}
-{%- if block.settings.website_on_home_only and request.page_type != 'index' -%}
-  {%- assign _emit_website = false -%}
-{%- endif -%}
-{%- if _emit_website -%}
+
+
+{%- comment -%} ====== WebSite (solo Home) ====== {%- endcomment -%}
+{%- if request.page_type == 'index' -%}
   {%- capture _search_target -%}{{ shop.url }}/search?q={search_term_string}{%- endcapture -%}
 <script type="application/ld+json" data-sae="1">
 {
@@ -166,6 +226,7 @@
 }
 </script>
 {%- endif -%}
+
 
 {%- comment -%} ====== BreadcrumbList simple (toggle) ====== {%- endcomment -%}
 {%- if block.settings.emit_breadcrumbs -%}
@@ -212,7 +273,7 @@
 {%- endif -%}
 
 {%- comment -%} ====== Collection: WebPage/CollectionPage + FAQPage ====== {%- endcomment -%}
-{%- if request.page_type == 'collection' and block.settings.emit_collection_auto -%}
+{%- if request.page_type == 'collection' -%}
 
 {%- assign _desc = collection.description | strip_html | truncate: 300 -%}
 <script type="application/ld+json" data-sae="1">
@@ -397,7 +458,7 @@
 {%- endif -%}
 
 {%- comment -%} ====== PRODUCT (PDP) ====== {%- endcomment -%}
-{%- if request.page_type == 'product' and product and block.settings.emit_product_auto -%}
+{%- if request.page_type == 'product' and product -%}
   {%- assign v = product.selected_or_first_available_variant -%}
   {%- assign _first_collection = product.collections | first -%}
   {%- assign _gcat = product.type -%}
@@ -486,7 +547,7 @@
         {%- if _bcl2 == 8 -%}"gtin8": {{ _bc2 | json }},{%- elsif _bcl2 == 12 -%}"gtin12": {{ _bc2 | json }},{%- elsif _bcl2 == 13 -%}"gtin13": {{ _bc2 | json }},{%- elsif _bcl2 == 14 -%}"gtin14": {{ _bc2 | json }},{%- endif -%}{% endif %}
         "price": "{{ ov.price | divided_by: 100.00 }}",
         "priceValidUntil": "{{ _price_until }}",
-        "availability": "https://schema.org/{% if block.settings.force_availability and block.settings.force_availability != '' %}{{ block.settings.force_availability }}{% else %}{% if ov.available %}InStock{% else %}OutOfStock{% endif %}{% endif %}",
+        "availability": "https://schema.org/{% if ov.available %}InStock{% else %}OutOfStock{% endif %}",
         "itemCondition": "https://schema.org/NewCondition",
         "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
         "shippingDetails": [{
@@ -529,7 +590,7 @@
     "priceCurrency": "{{ cart.currency.iso_code }}",
     "price": "{{ v.price | divided_by: 100.00 }}",
     "priceValidUntil": "{{ _price_until }}",
-    "availability": "https://schema.org/{% if block.settings.force_availability and block.settings.force_availability != '' %}{{ block.settings.force_availability }}{% else %}{% if v.available %}InStock{% else %}OutOfStock{% endif %}{% endif %}",
+    "availability": "https://schema.org/{% if v.available %}InStock{% else %}OutOfStock{% endif %}",
     "itemCondition": "https://schema.org/NewCondition",
     "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
     "shippingDetails": [{
@@ -602,43 +663,42 @@
   }
   </script>
 
-  {%- if block.settings.emit_howto_auto -%}
-    {%- assign _norm = article.content
-      | replace: '<H2', '<h2' | replace: '</H2', '</h2'
-      | replace: '<H3', '<h3' | replace: '</H3', '</h3'
-      | replace: '<h3', '<h2' | replace: '</h3', '</h2'
-    -%}
-    {%- assign _parts = _norm | split: '<h2' -%}
-    {%- assign _steps_json = '' -%}
-    {%- assign _steps_count = 0 -%}
+  {%- assign _norm = article.content
+    | replace: '<H2', '<h2' | replace: '</H2', '</h2'
+    | replace: '<H3', '<h3' | replace: '</H3', '</h3'
+    | replace: '<h3', '<h2' | replace: '</h3', '</h2'
+  -%}
+  {%- assign _parts = _norm | split: '<h2' -%}
+  {%- assign _steps_json = '' -%}
+  {%- assign _steps_count = 0 -%}
 
-    {%- for p in _parts -%}
+  {%- for p in _parts -%}
+    {%- if forloop.index0 == 0 -%}{% continue %}{% endif -%}
+    {%- assign _split_close = p | split: '</h2>' -%}
+    {%- assign _title_block = _split_close[0] | default: '' -%}
+    {%- assign _body_block  = _split_close[1] | default: '' -%}
+
+    {%- assign _segs = _title_block | split: '>' -%}
+    {%- assign _title_html = '' -%}
+    {%- for s in _segs -%}
       {%- if forloop.index0 == 0 -%}{% continue %}{% endif -%}
-      {%- assign _split_close = p | split: '</h2>' -%}
-      {%- assign _title_block = _split_close[0] | default: '' -%}
-      {%- assign _body_block  = _split_close[1] | default: '' -%}
-
-      {%- assign _segs = _title_block | split: '>' -%}
-      {%- assign _title_html = '' -%}
-      {%- for s in _segs -%}
-        {%- if forloop.index0 == 0 -%}{% continue %}{% endif -%}
-        {%- if _title_html == '' -%}{%- assign _title_html = s -%}{%- else -%}{%- assign _title_html = _title_html | append: '>' | append: s -%}{%- endif -%}
-      {%- endfor -%}
-
-      {%- assign _step_title = _title_html | strip_html | strip -%}
-      {%- assign _step_text  = _body_block | split: '<h2' | first | strip | strip_html | strip_newlines -%}
-
-      {%- if _step_title != '' and _step_text != '' -%}
-        {%- capture _one_step -%}
-{ "@type":"HowToStep","name": {{ _step_title | json }},"text": {{ _step_text | truncate: 700 | json }} }
-        {%- endcapture -%}
-        {%- if _steps_json != '' -%}{%- assign _steps_json = _steps_json | append: ',' -%}{%- endif -%}
-        {%- assign _steps_json = _steps_json | append: _one_step -%}
-        {%- assign _steps_count = _steps_count | plus: 1 -%}
-      {%- endif -%}
+      {%- if _title_html == '' -%}{%- assign _title_html = s -%}{%- else -%}{%- assign _title_html = _title_html | append: '>' | append: s -%}{%- endif -%}
     {%- endfor -%}
 
-    {%- if _steps_count >= 2 -%}
+    {%- assign _step_title = _title_html | strip_html | strip -%}
+    {%- assign _step_text  = _body_block | split: '<h2' | first | strip | strip_html | strip_newlines -%}
+
+    {%- if _step_title != '' and _step_text != '' -%}
+      {%- capture _one_step -%}
+{ "@type":"HowToStep","name": {{ _step_title | json }},"text": {{ _step_text | truncate: 700 | json }} }
+      {%- endcapture -%}
+      {%- if _steps_json != '' -%}{%- assign _steps_json = _steps_json | append: ',' -%}{%- endif -%}
+      {%- assign _steps_json = _steps_json | append: _one_step -%}
+      {%- assign _steps_count = _steps_count | plus: 1 -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- if _steps_count >= 2 -%}
 <script type="application/ld+json" data-sae="1">
 {
   "@context": "https://schema.org",
@@ -656,7 +716,6 @@
   "step": [ {{ _steps_json }} ]
 }
 </script>
-    {%- endif -%}
   {%- endif -%}
 {%- endif -%}
 
@@ -698,7 +757,7 @@
 {%- if block.settings.suppress_theme_jsonld -%}
 <script>
 (function(){
-  var killTypes = /"@type"\s*:\s*(?:\[\s*"(?:WebPage|CollectionPage|Product|Organization|WebSite|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList)".*?\]|"(?:Product|Organization|WebSite|BreadcrumbList|CollectionPage|WebPage|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList)")(?!\w)/i;
+  var killTypes = /"@type"\s*:\s*(?:\[\s*"(?:WebPage|CollectionPage|Product|Organization|WebSite|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList|LocalBusiness|Store|HardwareStore)".*?\]|"(?:Product|Organization|WebSite|BreadcrumbList|CollectionPage|WebPage|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList|LocalBusiness|Store|HardwareStore)")(?!\w)/i;
   function isMine(s){ return s.hasAttribute('data-sae'); }
   function clean(){
     document.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){
@@ -756,7 +815,7 @@
       "options": [
         { "value": "auto", "label": "t:settings.language_mode.options.auto" },
         { "value": "es",   "label": "t:settings.language_mode.options.es" },
-	{ "value": "en",   "label": "t:settings.language_mode.options.en" },
+        { "value": "en",   "label": "t:settings.language_mode.options.en" },
         { "value": "pt",   "label": "t:settings.language_mode.options.pt" }
       ],
       "default": "auto"
@@ -808,17 +867,6 @@
       "default": true
     },
 
-    { "type": "checkbox", "id": "website_on_home_only",
-      "label": "t:settings.website_on_home_only.label",
-      "info":  "t:settings.website_on_home_only.info",
-      "default": true
-    },
-
-    { "type": "text", "id": "force_availability",
-      "label": "t:settings.force_availability.label",
-      "info":  "t:settings.force_availability.info"
-    },
-
     { "type": "text", "id": "shipping_countries",
       "label": "t:settings.shipping_countries.label",
       "info":  "t:settings.shipping_countries.info",
@@ -846,28 +894,10 @@
       "default": "4.00"
     },
 
-    { "type": "checkbox", "id": "emit_collection_auto",
-      "label": "t:settings.emit_collection_auto.label",
-      "info":  "t:settings.emit_collection_auto.info",
-      "default": true
-    },
-
     { "type": "text", "id": "faq_handle",
       "label": "t:settings.faq_handle.label",
       "info":  "t:settings.faq_handle.info",
       "default": "custom.faq"
-    },
-
-    { "type": "checkbox", "id": "emit_howto_auto",
-      "label": "t:settings.emit_howto_auto.label",
-      "info":  "t:settings.emit_howto_auto.info",
-      "default": true
-    },
-
-    { "type": "checkbox", "id": "emit_product_auto",
-      "label": "Emitir Product automáticamente en PDP",
-      "info":  "Si tu tema ya emite Product, desactívalo aquí para evitar duplicados.",
-      "default": true
     },
 
     { "type": "checkbox", "id": "emit_breadcrumbs",
@@ -880,6 +910,37 @@
       "label": "t:settings.suppress_theme_jsonld.label",
       "info":  "t:settings.suppress_theme_jsonld.info",
       "default": true
+    },
+
+    { "type": "checkbox", "id": "emit_localbusiness",
+      "label": "Emitir LocalBusiness/Store (solo si hay tienda física)",
+      "default": false
+    },
+    { "type": "select", "id": "localbusiness_type",
+      "label": "Tipo de negocio (específico)",
+      "options": [
+        { "value": "HardwareStore", "label": "HardwareStore (ferretería)" },
+        { "value": "Store", "label": "Store (tienda genérica)" },
+        { "value": "LocalBusiness", "label": "LocalBusiness (genérico)" },
+        { "value": "HomeAndConstructionBusiness", "label": "HomeAndConstructionBusiness" }
+      ],
+      "default": "HardwareStore"
+    },
+    { "type": "text", "id": "localbusiness_name",
+      "label": "Nombre del local (opcional)",
+      "info": "Vacío = usa el nombre de la tienda."
+    },
+    { "type": "text", "id": "localbusiness_gbp_url",
+      "label": "URL de Google Business/Maps (opcional)",
+      "info": "Ej.: https://g.page/tu-ficha o la URL de Google Maps del local"
+    },
+    { "type": "text", "id": "localbusiness_geo_coords",
+      "label": "Coordenadas \"lat,lng\" (override)",
+      "info": "Ej.: 38.239,-1.420 — prioriza sobre la URL para geo/hasMap."
+    },
+    { "type": "text", "id": "localbusiness_price_range",
+      "label": "priceRange (opcional)",
+      "default": "€€"
     }
   ]
 }
