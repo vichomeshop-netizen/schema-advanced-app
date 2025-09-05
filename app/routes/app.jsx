@@ -1,7 +1,7 @@
 // app/routes/app.jsx
 import { Outlet, NavLink, useSearchParams, useLocation, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { prisma } from "~/lib/prisma.server";
 
 const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
@@ -15,25 +15,34 @@ export async function loader({ request }) {
 
   const rec = await prisma.shop.findUnique({ where: { shop } });
 
-  // Sin token → no intentamos billing ni GraphQL
-  if (!rec?.accessToken) {
-    return json({
-      state: "UNINSTALLED_OR_NO_TOKEN",
-      shop,
-      host,
-      apiKey: process.env.SHOPIFY_API_KEY,
-    });
-  }
+ // Sin token → si venimos del Admin (hay host), inicia OAuth automáticamente
+ if (!rec?.accessToken) {
+   if (host) {
+     const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
+     return redirect(toAuth);
+   }
+   // Fuera del Admin, muestra CTA de reinstalación
+   return json({
+     state: "UNINSTALLED_OR_NO_TOKEN",
+     shop,
+     host,
+     apiKey: process.env.SHOPIFY_API_KEY,
+   });
+ }
 
-  // Marcada como desinstalada por webhook
-  if (rec.subscriptionStatus === "UNINSTALLED") {
-    return json({
-      state: "UNINSTALLED",
-      shop,
-      host,
-      apiKey: process.env.SHOPIFY_API_KEY,
-    });
-  }
++ // Marcada como desinstalada → si hay host, re-instala lanzando OAuth; si no, CTA
+ if (rec.subscriptionStatus === "UNINSTALLED") {
+   if (host) {
+     const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
+     return redirect(toAuth);
+   }
+   return json({
+     state: "UNINSTALLED",
+     shop,
+     host,
+     apiKey: process.env.SHOPIFY_API_KEY,
+   });
+ }
 
   // ¿Necesita billing?
   let needsBilling = rec.subscriptionStatus !== "ACTIVE";
