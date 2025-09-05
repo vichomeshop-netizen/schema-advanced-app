@@ -30,7 +30,7 @@ export async function loader({ request }) {
    });
  }
 
-+ // Marcada como desinstalada → si hay host, re-instala lanzando OAuth; si no, CTA
+ // Marcada como desinstalada → si hay host, re-instala lanzando OAuth; si no, CTA
  if (rec.subscriptionStatus === "UNINSTALLED") {
    if (host) {
      const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
