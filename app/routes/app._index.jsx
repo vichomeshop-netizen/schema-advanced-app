@@ -1,12 +1,42 @@
 // app/routes/app._index.jsx
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
 import { prisma } from "~/lib/prisma.server";
 
+/** Deriva el dominio de la tienda a partir de host (base64url) si falta ?shop= */
+function decodeShopFromHost(hostB64url) {
+  try {
+    const base64 = hostB64url.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = Buffer.from(base64, "base64").toString("utf8"); // ej: "vichome-dev.myshopify.com/admin"
+    const m = decoded.match(/([a-z0-9-]+\.myshopify\.com)/i);
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loader({ request }) {
   const url = new URL(request.url);
-  const shop = url.searchParams.get("shop") || null;
-  const rec = shop ? await prisma.shop.findUnique({ where: { shop } }) : null;
+  let shop = url.searchParams.get("shop") || null;
+  const host = url.searchParams.get("host") || null;
+
+  // Fallback: si no viene ?shop=, intenta deducirlo desde ?host=
+  if (!shop && host) {
+    const fromHost = decodeShopFromHost(host);
+    if (fromHost) shop = fromHost;
+  }
+
+  // Si seguimos sin shop → inicia OAuth (top-level bounce)
+  if (!shop) {
+    return redirect("/auth");
+  }
+
+  // Busca la tienda; si no existe o no hay token, fuerza reauth
+  const rec = await prisma.shop.findUnique({ where: { shop } });
+  if (!rec?.accessToken) {
+    return redirect(`/auth?shop=${encodeURIComponent(shop)}`);
+  }
+
   return json({
     shop,
     subscriptionStatus: rec?.subscriptionStatus ?? null,
@@ -25,8 +55,8 @@ const TEXT = {
         <li><strong>Activa el App embed</strong> en <em>Tienda online → Temas → Personalizar → App embeds</em>.</li>
         <li><strong>Publica/valida el marcado</strong> (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
         <li>Comprueba con la
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Prueba de resultados enriquecidos</a>
-          y el <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Validador de Schema.org</a>.
+          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Prueba de resultados enriquecidos</a>
+          y el <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Validador de Schema.org</a>.
         </li>
       </ol>
       <p>Consejo: si el tema ya emite JSON-LD, activa el <em>supresor</em> para evitar duplicados.</p>
@@ -63,8 +93,8 @@ const TEXT = {
         <li><strong>Enable the App embed</strong> in <em>Online Store → Themes → Customize → App embeds</em>.</li>
         <li><strong>Publish/validate</strong> the markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
         <li>Verify with
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Rich Results Test</a>
-          and the <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Schema.org Validator</a>.
+          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Rich Results Test</a>
+          and the <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Schema.org Validator</a>.
         </li>
       </ol>
       <p>Tip: if your theme already emits JSON-LD, enable the <em>suppressor</em> to avoid duplicates.</p>
@@ -101,8 +131,8 @@ const TEXT = {
         <li><strong>Ative o App embed</strong> em <em>Online Store → Themes → Customize → App embeds</em>.</li>
         <li><strong>Publique/valide</strong> o markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
         <li>Verifique com
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noreferrer">Rich Results Test</a>
-          e o <a href="https://validator.schema.org/" target="_blank" rel="noreferrer">Schema.org Validator</a>.
+          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Rich Results Test</a>
+          e o <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Schema.org Validator</a>.
         </li>
       </ol>
       <p>Dica: se o tema já emite JSON-LD, ative o <em>supressor</em> para evitar duplicados.</p>
@@ -202,7 +232,7 @@ export default function Panel() {
           <a
             href="https://search.google.com/test/rich-results"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{
               padding: "8px 12px",
               borderRadius: 8,
@@ -247,5 +277,6 @@ export default function Panel() {
     </div>
   );
 }
+
 
 
