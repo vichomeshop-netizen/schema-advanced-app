@@ -3,11 +3,11 @@ import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
 import { prisma } from "~/lib/prisma.server";
 
-/** Deriva el dominio de la tienda a partir de host (base64url) si falta ?shop= */
+/** Deriva shop desde host (base64url) si falta ?shop= */
 function decodeShopFromHost(hostB64url) {
   try {
     const base64 = hostB64url.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = Buffer.from(base64, "base64").toString("utf8"); // ej: "vichome-dev.myshopify.com/admin"
+    const decoded = Buffer.from(base64, "base64").toString("utf8");
     const m = decoded.match(/([a-z0-9-]+\.myshopify\.com)/i);
     return m?.[1] ?? null;
   } catch {
@@ -17,25 +17,17 @@ function decodeShopFromHost(hostB64url) {
 
 export async function loader({ request }) {
   const url = new URL(request.url);
-  let shop = url.searchParams.get("shop") || null;
-  const host = url.searchParams.get("host") || null;
+  let shop = url.searchParams.get("shop");
+  const host = url.searchParams.get("host");
 
-  // Fallback: si no viene ?shop=, intenta deducirlo desde ?host=
   if (!shop && host) {
     const fromHost = decodeShopFromHost(host);
     if (fromHost) shop = fromHost;
   }
+  if (!shop) return redirect("/auth");
 
-  // Si seguimos sin shop → inicia OAuth (top-level bounce)
-  if (!shop) {
-    return redirect("/auth");
-  }
-
-  // Busca la tienda; si no existe o no hay token, fuerza reauth
   const rec = await prisma.shop.findUnique({ where: { shop } });
-  if (!rec?.accessToken) {
-    return redirect(`/auth?shop=${encodeURIComponent(shop)}`);
-  }
+  if (!rec?.accessToken) return redirect(`/auth?shop=${encodeURIComponent(shop)}`);
 
   return json({
     shop,
@@ -46,134 +38,107 @@ export async function loader({ request }) {
 
 const TEXT = {
   es: {
-    title: "Schema Advanced — Panel de inicio",
+    title: "Schema Advanced — Overview",
     intro:
-      "Este panel combina el onboarding con la guía completa. Las pestañas de la izquierda (Productos, Colecciones, Ajustes) son informativas: no hacen cambios en la tienda; explican qué emite la app y cómo validarlo.",
-    onboardingTitle: "Inicio rápido (Onboarding)",
+      "Onboarding y guía en una sola vista. Las pestañas de la izquierda (Productos, Colecciones, Ajustes) son informativas: no cambian nada en tu tienda; explican qué emite la app y cómo validarlo.",
+    onboardingTitle: "Inicio rápido",
     onboardingHtml: `
       <ol>
         <li><strong>Activa el App embed</strong> en <em>Tienda online → Temas → Personalizar → App embeds</em>.</li>
-        <li><strong>Publica/valida el marcado</strong> (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
-        <li>Comprueba con la
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Prueba de resultados enriquecidos</a>
-          y el <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Validador de Schema.org</a>.
-        </li>
+        <li><strong>Publica/valida</strong> el marcado (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList).</li>
+        <li>Valida con la <em>Prueba de resultados enriquecidos</em> o el <em>Validador de Schema.org</em>.</li>
       </ol>
-      <p>Consejo: si el tema ya emite JSON-LD, activa el <em>supresor</em> para evitar duplicados.</p>
+      <p>Si el tema ya emite JSON-LD, activa el <em>supresor</em> para evitar duplicados.</p>
     `,
-    guideTitle: "Guía completa",
+    guideTitle: "Guía rápida",
     guideHtml: `
-      <p><strong>Cómo funciona:</strong> La app inserta JSON-LD con <code>data-sae="1"</code>. Puedes revisarlo en el código fuente o con las herramientas de validación.</p>
       <ul>
         <li><strong>Organization</strong> en todas las páginas</li>
-        <li><strong>WebSite</strong> (home opcional) con <code>SearchAction</code></li>
+        <li><strong>WebSite</strong> con <code>SearchAction</code> (home opcional)</li>
         <li><strong>BreadcrumbList</strong> (toggle)</li>
-        <li><strong>CollectionPage</strong> + <strong>FAQPage</strong> (metafield/metaobjects)</li>
+        <li><strong>CollectionPage</strong> + <strong>FAQPage</strong> (metafields/metaobjects)</li>
         <li><strong>Product</strong> con <strong>AggregateOffer/Offer</strong>, <code>OfferShippingDetails</code>, <code>MerchantReturnPolicy</code></li>
         <li><strong>BlogPosting</strong> y <strong>HowTo</strong> (auto desde H2)</li>
         <li><strong>ContactPage</strong> y <strong>AboutPage</strong></li>
-        <li>Supresor JSON-LD del tema (opcional)</li>
       </ul>
     `,
-    ctas: {
-      openEditor: "Abrir editor de temas",
-      openRRT: "Abrir Rich Results Test",
-      scrollGuide: "Ir a la guía",
-    },
+    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plan activo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sin suscripción",
   },
   en: {
-    title: "Schema Advanced — Home panel",
+    title: "Schema Advanced — Overview",
     intro:
-      "This panel merges onboarding with the full guide. Left tabs (Products, Collections, Settings) are informational: they don’t change the store; they describe outputs and validation.",
-    onboardingTitle: "Quick start (Onboarding)",
+      "Onboarding and guide in one view. Left tabs (Products, Collections, Settings) are informational only: they don’t change your store; they document outputs and validation.",
+    onboardingTitle: "Quick start",
     onboardingHtml: `
       <ol>
         <li><strong>Enable the App embed</strong> in <em>Online Store → Themes → Customize → App embeds</em>.</li>
-        <li><strong>Publish/validate</strong> the markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
-        <li>Verify with
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Rich Results Test</a>
-          and the <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Schema.org Validator</a>.
-        </li>
+        <li><strong>Publish/validate</strong> the markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList).</li>
+        <li>Validate with the <em>Rich Results Test</em> or <em>Schema.org Validator</em>.</li>
       </ol>
-      <p>Tip: if your theme already emits JSON-LD, enable the <em>suppressor</em> to avoid duplicates.</p>
+      <p>If your theme already emits JSON-LD, enable the <em>suppressor</em> to avoid duplicates.</p>
     `,
-    guideTitle: "Full guide",
+    guideTitle: "Quick guide",
     guideHtml: `
-      <p><strong>How it works:</strong> The app injects JSON-LD tagged with <code>data-sae="1"</code>. Inspect the source or validate with Google tools.</p>
       <ul>
         <li><strong>Organization</strong> on all pages</li>
-        <li><strong>WebSite</strong> (optional on home) with <code>SearchAction</code></li>
+        <li><strong>WebSite</strong> with <code>SearchAction</code> (optional on home)</li>
         <li><strong>BreadcrumbList</strong> (toggle)</li>
         <li><strong>CollectionPage</strong> + <strong>FAQPage</strong> (metafields/metaobjects)</li>
         <li><strong>Product</strong> with <strong>AggregateOffer/Offer</strong>, <code>OfferShippingDetails</code>, <code>MerchantReturnPolicy</code></li>
         <li><strong>BlogPosting</strong> and <strong>HowTo</strong> (auto from H2)</li>
         <li><strong>ContactPage</strong> and <strong>AboutPage</strong></li>
-        <li>Theme JSON-LD suppressor (optional)</li>
       </ul>
     `,
-    ctas: {
-      openEditor: "Open Theme Editor",
-      openRRT: "Open Rich Results Test",
-      scrollGuide: "Go to guide",
-    },
+    ctas: { openEditor: "Open Theme Editor", openRRT: "Open Rich Results Test" },
     badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "No subscription",
   },
   pt: {
-    title: "Schema Advanced — Painel inicial",
+    title: "Schema Advanced — Visão geral",
     intro:
-      "Este painel une o onboarding com o guia completo. As abas à esquerda (Produtos, Coleções, Definições) são informativas: não alteram a loja; explicam saídas e validação.",
-    onboardingTitle: "Início rápido (Onboarding)",
+      "Onboarding e guia em uma única vista. As abas à esquerda (Produtos, Coleções, Definições) são informativas: não alteram sua loja; documentam saídas e validação.",
+    onboardingTitle: "Início rápido",
     onboardingHtml: `
       <ol>
         <li><strong>Ative o App embed</strong> em <em>Online Store → Themes → Customize → App embeds</em>.</li>
-        <li><strong>Publique/valide</strong> o markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList, etc.).</li>
-        <li>Verifique com
-          <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Rich Results Test</a>
-          e o <a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Schema.org Validator</a>.
-        </li>
+        <li><strong>Publique/valide</strong> o markup (Product, CollectionPage, WebSite, FAQPage, HowTo, BreadcrumbList).</li>
+        <li>Valide com o <em>Rich Results Test</em> ou <em>Schema.org Validator</em>.</li>
       </ol>
-      <p>Dica: se o tema já emite JSON-LD, ative o <em>supressor</em> para evitar duplicados.</p>
+      <p>Se o tema já emite JSON-LD, ative o <em>supressor</em> para evitar duplicados.</p>
     `,
-    guideTitle: "Guia completo",
+    guideTitle: "Guia rápido",
     guideHtml: `
-      <p><strong>Como funciona:</strong> O app injeta JSON-LD com <code>data-sae="1"</code>. Revise no código-fonte ou valide nas ferramentas do Google.</p>
       <ul>
         <li><strong>Organization</strong> em todas as páginas</li>
-        <li><strong>WebSite</strong> (home opcional) com <code>SearchAction</code></li>
+        <li><strong>WebSite</strong> com <code>SearchAction</code> (home opcional)</li>
         <li><strong>BreadcrumbList</strong> (toggle)</li>
         <li><strong>CollectionPage</strong> + <strong>FAQPage</strong> (metafields/metaobjects)</li>
         <li><strong>Product</strong> com <strong>AggregateOffer/Offer</strong>, <code>OfferShippingDetails</code>, <code>MerchantReturnPolicy</code></li>
         <li><strong>BlogPosting</strong> e <strong>HowTo</strong> (auto desde H2)</li>
         <li><strong>ContactPage</strong> e <strong>AboutPage</strong></li>
-        <li>Supressor de JSON-LD do tema (opcional)</li>
       </ul>
     `,
-    ctas: {
-      openEditor: "Abrir editor de temas",
-      openRRT: "Abrir Rich Results Test",
-      scrollGuide: "Ir ao guia",
-    },
+    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plano ativo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sem assinatura",
   },
 };
 
-// Helper local: abre el editor de temas en top, soporta admin.shopify.com y admin clásico
+// Helper: abrir editor de temas (mismo patrón que usas en el layout)
 function openThemeEditorFromQS() {
   if (typeof window === "undefined") return;
   const qs = new URLSearchParams(window.location.search);
   const shop = qs.get("shop") || "";
   const store = shop.replace(".myshopify.com", "");
   const href = store
-    ? `https://admin.shopify.com/store/${store}/themes`
-    : `https://${shop || window.location.hostname}/admin/themes`;
+    ? `https://admin.shopify.com/store/${store}/themes/current/editor?context=apps`
+    : `https://${shop || window.location.hostname}/admin/themes/current/editor?context=apps`;
   window.top.location.href = href;
 }
 
-export default function Panel() {
+export default function Overview() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
@@ -182,7 +147,7 @@ export default function Panel() {
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
-      {/* Badge de estado de suscripción */}
+      {/* Badge de suscripción */}
       <div style={{ marginBottom: 8 }}>
         <span
           style={{
@@ -202,7 +167,7 @@ export default function Panel() {
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>{t.title}</h1>
       <p style={{ marginTop: 0, color: "#374151" }}>{t.intro}</p>
 
-      {/* Onboarding al principio */}
+      {/* Onboarding */}
       <section
         style={{
           background: "#fff",
@@ -214,6 +179,7 @@ export default function Panel() {
       >
         <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.onboardingTitle}</h2>
         <div dangerouslySetInnerHTML={{ __html: t.onboardingHtml }} />
+
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <button
             onClick={openThemeEditorFromQS}
@@ -229,6 +195,8 @@ export default function Panel() {
           >
             {t.ctas.openEditor}
           </button>
+
+          {/* ÚNICO CTA a Rich Results (sin duplicar link) */}
           <a
             href="https://search.google.com/test/rich-results"
             target="_blank"
@@ -244,25 +212,11 @@ export default function Panel() {
           >
             {t.ctas.openRRT}
           </a>
-          <a
-            href="#guide"
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: "#fff",
-              color: "#111827",
-              textDecoration: "none",
-            }}
-          >
-            {t.ctas.scrollGuide}
-          </a>
         </div>
       </section>
 
-      {/* Guía completa fusionada con el panel */}
+      {/* Guía rápida */}
       <section
-        id="guide"
         style={{
           background: "#fff",
           border: "1px solid #e5e7eb",

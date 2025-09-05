@@ -15,34 +15,24 @@ export async function loader({ request }) {
 
   const rec = await prisma.shop.findUnique({ where: { shop } });
 
- // Sin token → si venimos del Admin (hay host), inicia OAuth automáticamente
- if (!rec?.accessToken) {
-   if (host) {
-     const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
-     return redirect(toAuth);
-   }
-   // Fuera del Admin, muestra CTA de reinstalación
-   return json({
-     state: "UNINSTALLED_OR_NO_TOKEN",
-     shop,
-     host,
-     apiKey: process.env.SHOPIFY_API_KEY,
-   });
- }
+  // Sin token → si venimos del Admin (hay host), inicia OAuth automáticamente
+  if (!rec?.accessToken) {
+    if (host) {
+      const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
+      return redirect(toAuth);
+    }
+    // Fuera del Admin, muestra CTA de reinstalación
+    return json({ state: "UNINSTALLED_OR_NO_TOKEN", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
+  }
 
- // Marcada como desinstalada → si hay host, re-instala lanzando OAuth; si no, CTA
- if (rec.subscriptionStatus === "UNINSTALLED") {
-   if (host) {
-     const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
-     return redirect(toAuth);
-   }
-   return json({
-     state: "UNINSTALLED",
-     shop,
-     host,
-     apiKey: process.env.SHOPIFY_API_KEY,
-   });
- }
+  // Marcada como desinstalada
+  if (rec.subscriptionStatus === "UNINSTALLED") {
+    if (host) {
+      const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
+      return redirect(toAuth);
+    }
+    return json({ state: "UNINSTALLED", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
+  }
 
   // ¿Necesita billing?
   let needsBilling = rec.subscriptionStatus !== "ACTIVE";
@@ -50,10 +40,7 @@ export async function loader({ request }) {
     try {
       const r = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": rec.accessToken,
-        },
+        headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": rec.accessToken },
         body: JSON.stringify({ query: LIVE_Q }),
       });
       const data = await r.json();
@@ -70,25 +57,14 @@ export async function loader({ request }) {
         needsBilling = false;
       }
     } catch {
-      // ignora fallo de live check; nos quedamos con lo persistido
+      // ignora fallo; seguimos con lo persistido
     }
   }
 
-  return json({
-    state: needsBilling ? "NEEDS_BILLING" : "OK",
-    shop,
-    host,
-    apiKey: process.env.SHOPIFY_API_KEY,
-  });
+  return json({ state: needsBilling ? "NEEDS_BILLING" : "OK", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
 }
 
-/**
- * Layout padre de /app:
- * - NO lanza billing si no hay token / desinstalada
- * - Lanza billing una sola vez por sesión cuando hace falta
- * - Re-embed con App Bridge usando apiKey/host del loader
- */
-
+/** Utilidades **/
 function decodeHostB64Url(hostParam) {
   if (!hostParam) return "";
   try {
@@ -103,28 +79,20 @@ function decodeHostB64Url(hostParam) {
 function buildThemeEditorUrl() {
   const params = new URLSearchParams(window.location.search);
   const hostParam = params.get("host") || "";
-  const decoded = decodeHostB64Url(hostParam); // "admin.shopify.com/store/xxx" o "{shop}.myshopify.com/admin"
+  const decoded = decodeHostB64Url(hostParam);
 
   const m1 = decoded.match(/admin\.shopify\.com\/store\/([^\/?#]+)/i);
-  if (m1 && m1[1]) {
-    return `https://admin.shopify.com/store/${m1[1]}/themes/current/editor?context=apps`;
-  }
+  if (m1 && m1[1]) return `https://admin.shopify.com/store/${m1[1]}/themes/current/editor?context=apps`;
 
   const m2 = decoded.match(/([^\/]+\.myshopify\.com)\/admin/i);
-  if (m2 && m2[1]) {
-    return `https://${m2[1]}/admin/themes/current/editor?context=apps`;
-  }
+  if (m2 && m2[1]) return `https://${m2[1]}/admin/themes/current/editor?context=apps`;
 
   const shop =
     params.get("shop") ||
     (typeof window !== "undefined" && window.Shopify && window.Shopify.shop) ||
     "";
 
-  if (shop) {
-    return `https://${shop}/admin/themes/current/editor?context=apps`;
-  }
-
-  return `/admin/themes/current/editor?context=apps`;
+  return shop ? `https://${shop}/admin/themes/current/editor?context=apps` : `/admin/themes/current/editor?context=apps`;
 }
 
 export default function AppLayout() {
@@ -147,7 +115,7 @@ export default function AppLayout() {
     }
   }, [apiKey, host]);
 
-  // Si está desinstalada o sin token → CTA de reinstalación (nada de billing)
+  // Estados previos a billing / instalación
   if (state === "UNINSTALLED" || state === "UNINSTALLED_OR_NO_TOKEN") {
     const reinstall = `/auth?shop=${encodeURIComponent(shop || "")}`;
     return (
@@ -163,14 +131,11 @@ export default function AppLayout() {
     );
   }
 
-  // Si falta billing, dispara una sola vez por sesión
+  // Billing (una sola vez por sesión)
   useEffect(() => {
-    if (state !== "NEEDS_BILLING") return;
-    if (!shop) return;
-
+    if (state !== "NEEDS_BILLING" || !shop) return;
     const key = `billing:${shop}`;
-    if (sessionStorage.getItem(key)) return; // dedupe
-
+    if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
 
     (async () => {
@@ -183,10 +148,7 @@ export default function AppLayout() {
           host ? `&host=${encodeURIComponent(host)}` : ""
         }`;
         redirect.dispatch(Redirect.Action.REMOTE, url);
-        // Fallback por si App Bridge no puede por 3rd-party cookies:
-        setTimeout(() => {
-          if (window.top) window.top.location.href = url;
-        }, 1200);
+        setTimeout(() => { if (window.top) window.top.location.href = url; }, 1200);
       } catch {
         const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${
           host ? `&host=${encodeURIComponent(host)}` : ""
@@ -200,9 +162,7 @@ export default function AppLayout() {
     return <p style={{ padding: 16 }}>Redirigiendo a la suscripción…</p>;
   }
 
-  // === Estado OK → UI normal ===
-
-  // Mantener ?lang= sin perder host/shop
+  // Mantener ?lang=
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     q.set("lang", lang);
@@ -211,34 +171,26 @@ export default function AppLayout() {
 
   const toWithSearch = (pathname) => ({ pathname, search });
 
-  function navBtn(isActive) {
-    return {
-      display: "block",
-      padding: "8px 10px",
-      borderRadius: 8,
-      border: "1px solid " + (isActive ? "#111827" : "#d1d5db"),
-      background: isActive ? "#111827" : "#fff",
-      color: isActive ? "#fff" : "#111827",
-      fontWeight: 600,
-      textDecoration: "none",
-    };
-  }
+  const linkStyle = (isActive) => ({
+    display: "block",
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: isActive ? "1px solid #111827" : "1px solid #dfe3e8",
+    background: isActive ? "#111827" : "#fff",
+    color: isActive ? "#fff" : "#111827",
+    fontWeight: 600,
+    textDecoration: "none",
+  });
 
   const openThemeEditor = () => {
     try {
       const url = buildThemeEditorUrl();
       const a = document.createElement("a");
-      a.href = url;
-      a.target = "_top";
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.href = url; a.target = "_top"; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
     } catch (err) {
       console.error("Open theme editor failed:", err);
-      alert(
-        "No pude abrir el editor.\nAbre la app desde el Admin (URL con ?host=...) o añade ?shop=tu-tienda.myshopify.com."
-      );
+      alert("No pude abrir el editor.\nAbre la app desde el Admin (URL con ?host=...) o añade ?shop=tu-tienda.myshopify.com.");
     }
   };
 
@@ -253,12 +205,12 @@ export default function AppLayout() {
         padding: 12,
       }}
     >
-      {/* === BARRA LATERAL ÚNICA === */}
+      {/* Sidebar tipo Shopify Admin */}
       <aside style={{ borderRight: "1px solid #e5e7eb", paddingRight: 12 }}>
         <h2 style={{ fontSize: 16, margin: "6px 0 10px" }}>Schema Advanced</h2>
 
         <label style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
-          {lang === "en" ? "Language" : lang === "pt" ? "Idioma" : "Idioma"}
+          {lang === "en" ? "Language" : "Idioma"}
           <select
             value={lang}
             onChange={(e) => setLang(e.target.value)}
@@ -269,6 +221,7 @@ export default function AppLayout() {
               border: "1px solid #d1d5db",
               borderRadius: 6,
               width: "100%",
+              background: "#fff",
             }}
           >
             <option value="es">Español</option>
@@ -278,39 +231,36 @@ export default function AppLayout() {
         </label>
 
         <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
-          <NavLink to={toWithSearch("overview")} style={({ isActive }) => navBtn(isActive)}>
+          {/* Overview = índice de /app */}
+          <NavLink end to={toWithSearch(".")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
           </NavLink>
 
-          <NavLink end to={toWithSearch(".")} style={({ isActive }) => navBtn(isActive)}>
-            {lang === "pt" ? "Painel" : lang === "en" ? "Panel" : "Panel"}
-          </NavLink>
-
-          <NavLink to={toWithSearch("products")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("products")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Produtos" : lang === "en" ? "Products" : "Productos"}
           </NavLink>
 
-          <NavLink to={toWithSearch("collections")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("collections")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Coleções" : lang === "en" ? "Collections" : "Colecciones"}
           </NavLink>
 
-          <NavLink to={toWithSearch("pages")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("pages")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
           </NavLink>
 
-          <NavLink to={toWithSearch("blog")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("blog")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
           </NavLink>
 
-          <NavLink to={toWithSearch("global")} style={({ isActive }) => navBtn(isActive)}>
-            {lang === "pt" ? "Global" : "Global"}
+          <NavLink to={toWithSearch("global")} style={({ isActive }) => linkStyle(isActive)}>
+            Global
           </NavLink>
 
-          <NavLink to={toWithSearch("suppressor")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("suppressor")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Supressor JSON-LD" : lang === "en" ? "JSON-LD Suppressor" : "Supresor JSON-LD"}
           </NavLink>
 
-          <NavLink to={toWithSearch("settings")} style={({ isActive }) => navBtn(isActive)}>
+          <NavLink to={toWithSearch("settings")} style={({ isActive }) => linkStyle(isActive)}>
             {lang === "pt" ? "Configurações" : lang === "en" ? "Settings" : "Ajustes"}
           </NavLink>
         </nav>
@@ -320,29 +270,29 @@ export default function AppLayout() {
           style={{
             marginTop: 12,
             padding: "8px 10px",
-            border: "1px solid #d1d5db",
+            border: "1px solid #dfe3e8",
             borderRadius: 8,
             background: "#111827",
             color: "#fff",
             fontWeight: 700,
+            width: "100%",
           }}
         >
           {lang === "pt" ? "Abrir editor do tema" : lang === "en" ? "Open theme editor" : "Abrir editor de temas"}
         </button>
 
         <div style={{ marginTop: 14, fontSize: 12 }}>
-          <div><a href="/support" target="_blank" rel="noreferrer">Support</a></div>
-          <div><a href="/terms" target="_blank" rel="noreferrer">Terms</a></div>
-          <div><a href="/privacy" target="_blank" rel="noreferrer">Privacy</a></div>
+          <div><a href={`/support${search}`} target="_top" rel="noreferrer">Support</a></div>
+          <div><a href={`/terms${search}`} target="_top" rel="noreferrer">Terms</a></div>
+          <div><a href={`/privacy${search}`} target="_top" rel="noreferrer">Privacy</a></div>
         </div>
       </aside>
 
-      {/* === CONTENIDO === */}
+      {/* Contenido */}
       <main>
         <Outlet context={{ lang }} />
       </main>
     </div>
   );
 }
-
 
