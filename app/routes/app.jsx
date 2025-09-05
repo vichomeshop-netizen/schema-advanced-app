@@ -1,7 +1,7 @@
 // app/routes/app.jsx
 import { Outlet, NavLink, useSearchParams, useLocation, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { prisma } from "~/lib/prisma.server";
 
 const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
@@ -10,18 +10,41 @@ const LIVE_Q = `query { currentAppInstallation { activeSubscriptions { id name s
 export async function loader({ request }) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop") || null;
-  const host = url.searchParams.get("host") || ""; // ⬅️ añadido (scope global del loader)
+  const host = url.searchParams.get("host") || "";
   if (!shop) throw json({ error: "missing shop" }, { status: 400 });
 
   const rec = await prisma.shop.findUnique({ where: { shop } });
-  let status = rec?.subscriptionStatus ?? null;
 
-  // Fallback: tras volver del checkout, valida en vivo y sincroniza si ya está ACTIVA
-  if (status !== "ACTIVE" && rec?.accessToken) {
+  // Sin token → no intentamos billing ni GraphQL
+  if (!rec?.accessToken) {
+    return json({
+      state: "UNINSTALLED_OR_NO_TOKEN",
+      shop,
+      host,
+      apiKey: process.env.SHOPIFY_API_KEY,
+    });
+  }
+
+  // Marcada como desinstalada por webhook
+  if (rec.subscriptionStatus === "UNINSTALLED") {
+    return json({
+      state: "UNINSTALLED",
+      shop,
+      host,
+      apiKey: process.env.SHOPIFY_API_KEY,
+    });
+  }
+
+  // ¿Necesita billing?
+  let needsBilling = rec.subscriptionStatus !== "ACTIVE";
+  if (needsBilling) {
     try {
       const r = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": rec.accessToken },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": rec.accessToken,
+        },
         body: JSON.stringify({ query: LIVE_Q }),
       });
       const data = await r.json();
@@ -35,28 +58,26 @@ export async function loader({ request }) {
             planName: sub.name,
           },
         });
-        status = "ACTIVE";
+        needsBilling = false;
       }
-    } catch { /* ignore */ }
+    } catch {
+      // ignora fallo de live check; nos quedamos con lo persistido
+    }
   }
 
-  if (status !== "ACTIVE") {
-    // Redirección automática a la pantalla de suscripción (GET soportado) propagando host
-    const q = new URLSearchParams({ shop });
-    if (host) q.set("host", host);
-    throw redirect(`/api/billing/start?${q.toString()}`);
-  }
-
-  // Devolvemos apiKey y host para el re-embed en el cliente
-  return json({ shop, subscriptionStatus: status, apiKey: process.env.SHOPIFY_API_KEY, host });
+  return json({
+    state: needsBilling ? "NEEDS_BILLING" : "OK",
+    shop,
+    host,
+    apiKey: process.env.SHOPIFY_API_KEY,
+  });
 }
 
 /**
- * Layout padre de /app (sin botones de billing):
- * - Sidebar único con pestañas
- * - Selector de idioma (propaga vía <Outlet context={{lang}} />)
- * - Botón "Open theme editor" robusto
- * - Conserva el query string al navegar
+ * Layout padre de /app:
+ * - NO lanza billing si no hay token / desinstalada
+ * - Lanza billing una sola vez por sesión cuando hace falta
+ * - Re-embed con App Bridge usando apiKey/host del loader
  */
 
 function decodeHostB64Url(hostParam) {
@@ -98,24 +119,81 @@ function buildThemeEditorUrl() {
 }
 
 export default function AppLayout() {
-  const { apiKey, host } = useLoaderData(); // ⬅️ apiKey/host del loader
+  const { state, shop, apiKey, host } = useLoaderData();
   const [sp] = useSearchParams();
   const { search } = useLocation();
   const initial = sp.get("lang") || "es";
   const [lang, setLang] = useState(["es", "en", "pt"].includes(initial) ? initial : "es");
 
-  // 🔁 Re-embed automático si estamos fuera del iframe y tenemos ?host=...
+  // Re-embed top-level si estamos fuera del iframe y tenemos host
   useEffect(() => {
     if (!apiKey || !host) return;
     if (typeof window === "undefined") return;
     if (window.top === window.self) {
-      import("@shopify/app-bridge").then(({ default: createApp }) => {
-        createApp({ apiKey, host, forceRedirect: true });
-      }).catch(() => { /* ignore */ });
+      import("@shopify/app-bridge")
+        .then(({ default: createApp }) => {
+          createApp({ apiKey, host, forceRedirect: true });
+        })
+        .catch(() => {});
     }
   }, [apiKey, host]);
 
-  // Mantener ?lang= en la URL sin perder el resto de params (host, shop, etc.)
+  // Si está desinstalada o sin token → CTA de reinstalación (nada de billing)
+  if (state === "UNINSTALLED" || state === "UNINSTALLED_OR_NO_TOKEN") {
+    const reinstall = `/auth?shop=${encodeURIComponent(shop || "")}`;
+    return (
+      <div style={{ padding: 16 }}>
+        <h3>La app no está instalada en esta tienda.</h3>
+        <p>
+          Instálala de nuevo:{" "}
+          <a href={reinstall} target="_top" rel="noreferrer">
+            {reinstall}
+          </a>
+        </p>
+      </div>
+    );
+  }
+
+  // Si falta billing, dispara una sola vez por sesión
+  useEffect(() => {
+    if (state !== "NEEDS_BILLING") return;
+    if (!shop) return;
+
+    const key = `billing:${shop}`;
+    if (sessionStorage.getItem(key)) return; // dedupe
+
+    sessionStorage.setItem(key, "1");
+
+    (async () => {
+      try {
+        const { default: createApp } = await import("@shopify/app-bridge");
+        const { Redirect } = await import("@shopify/app-bridge/actions");
+        const app = createApp({ apiKey, host, forceRedirect: true });
+        const redirect = Redirect.create(app);
+        const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${
+          host ? `&host=${encodeURIComponent(host)}` : ""
+        }`;
+        redirect.dispatch(Redirect.Action.REMOTE, url);
+        // Fallback por si App Bridge no puede por 3rd-party cookies:
+        setTimeout(() => {
+          if (window.top) window.top.location.href = url;
+        }, 1200);
+      } catch {
+        const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${
+          host ? `&host=${encodeURIComponent(host)}` : ""
+        }`;
+        if (window.top) window.top.location.href = url;
+      }
+    })();
+  }, [state, shop, host, apiKey]);
+
+  if (state === "NEEDS_BILLING") {
+    return <p style={{ padding: 16 }}>Redirigiendo a la suscripción…</p>;
+  }
+
+  // === Estado OK → UI normal ===
+
+  // Mantener ?lang= sin perder host/shop
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     q.set("lang", lang);
@@ -257,7 +335,5 @@ export default function AppLayout() {
     </div>
   );
 }
-
-
 
 

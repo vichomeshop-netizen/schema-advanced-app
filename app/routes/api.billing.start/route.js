@@ -1,11 +1,18 @@
-
 // app/routes/api.billing.start.jsx
 import { redirect, json } from "@remix-run/node";
 import { getShop } from "~/lib/shop.server";
 
-const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
+const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2025-07";
 
-const MUTATION = `
+const LIVE_Q = /* GraphQL */ `
+  query {
+    currentAppInstallation {
+      activeSubscriptions { id name status }
+    }
+  }
+`;
+
+const MUTATION = /* GraphQL */ `
 mutation CreateSubscription(
   $name: String!,
   $returnUrl: URL!,
@@ -24,7 +31,8 @@ mutation CreateSubscription(
     confirmationUrl
     appSubscription { id name status }
   }
-}`;
+}
+`;
 
 async function adminGraphql(shop, accessToken, query, variables) {
   const res = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
@@ -32,7 +40,10 @@ async function adminGraphql(shop, accessToken, query, variables) {
     headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": accessToken },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) throw new Response(`Admin GQL ${res.status}`, { status: res.status });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Response(`Admin GQL ${res.status}: ${txt}`, { status: res.status, headers: { "Cache-Control": "no-store" } });
+  }
   return res.json();
 }
 
@@ -53,20 +64,32 @@ async function isDevShop(shop, accessToken) {
 async function start(request) {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
-  const host = url.searchParams.get("host") || ""; // ⬅️ NUEVO
-  if (!shop) return json({ error: "missing shop" }, 400);
+  const host = url.searchParams.get("host") || "";
+  if (!shop) return json({ error: "missing shop" }, { status: 400, headers: { "Cache-Control": "no-store" } });
 
   const s = await getShop(shop);
-  if (!s?.accessToken) return json({ error: "no token" }, 401);
 
-  // volver embebido al panel
-  const baseReturn = `${url.origin}/app?shop=${encodeURIComponent(shop)}`;
-  const returnUrl =
-    process.env.BILLING_RETURN_URL ||
-    (host ? `${baseReturn}&host=${encodeURIComponent(host)}&embedded=1` : baseReturn);
+  // 🔒 Si no hay token o la app está desinstalada, NO iniciar billing.
+  if (!s?.accessToken || s?.subscriptionStatus === "UNINSTALLED") {
+    return new Response("not installed", { status: 410, headers: { "Cache-Control": "no-store" } });
+  }
 
-  const TEST_MODE =
-    (await isDevShop(shop, s.accessToken)) || process.env.BILLING_TEST === "1";
+  // URL de retorno (usa APP_URL si existe para coherencia con el resto de la app)
+  const base = (process.env.APP_URL?.replace(/\/+$/, "") || url.origin);
+  const returnUrl = `${base}/app?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`;
+
+  // 🛡️ Si ya hay una suscripción ACTIVA, vuelve al panel sin pasar por checkout
+  try {
+    const live = await adminGraphql(shop, s.accessToken, LIVE_Q, {});
+    const sub = live?.data?.currentAppInstallation?.activeSubscriptions?.[0];
+    if (sub?.status === "ACTIVE") {
+      return redirect(returnUrl, { headers: { "Cache-Control": "no-store" } });
+    }
+  } catch {
+    // no bloquea; continuamos con el intento de crear
+  }
+
+  const TEST_MODE = (await isDevShop(shop, s.accessToken)) || process.env.BILLING_TEST === "1";
 
   const vars = {
     name: "Schema Advanced — Monthly",
@@ -77,7 +100,7 @@ async function start(request) {
         plan: {
           appRecurringPricingDetails: {
             price: { amount: 9.99, currencyCode: "EUR" },
-            // interval: "EVERY_30_DAYS",
+            interval: "EVERY_30_DAYS", // ⬅️ explícito
           },
         },
       },
@@ -90,16 +113,21 @@ async function start(request) {
 
   if (out?.userErrors?.length) {
     const msg = out.userErrors.map((e) => e.message).join("; ").toLowerCase();
+    // Si ya existe suscripción activa/pendiente, vuelve al panel
     if (msg.includes("active subscription") || msg.includes("already")) {
-      return redirect(returnUrl);
+      return redirect(returnUrl, { headers: { "Cache-Control": "no-store" } });
     }
-    return json({ error: out.userErrors }, 400);
+    return json({ error: "billing_error", details: out.userErrors }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 
   const confirmationUrl = out?.confirmationUrl;
-  if (!confirmationUrl) return redirect(returnUrl);
-  return redirect(confirmationUrl);
+  if (!confirmationUrl) {
+    // fallback defensivo
+    return redirect(returnUrl, { headers: { "Cache-Control": "no-store" } });
+  }
+  return redirect(confirmationUrl, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function action({ request }) { return start(request); }
 export async function loader({ request }) { return start(request); } // GET auto-redirect
+
