@@ -105,27 +105,28 @@
     }
   },
 
+  {
   "lb": {
     "settings": {
       "lb_enable": { "label": "Enable LocalBusiness", "info": "Emits the physical location’s JSON-LD." },
-      "lb_type":    { "label": "Business type" },
-      "lb_name":    { "label": "Location name", "info": "Empty = shop name." },
-      "lb_logo":    { "label": "Location logo", "info": "Used in logo/image in markup." },
-      "lb_sameas":  { "label": "Social profiles", "info": "URLs separated by comma or spaces." },
-      "lb_phone":   { "label": "Phone" },
-      "lb_email":   { "label": "Email" },
+      "lb_type": { "label": "Business type" },
+      "lb_name": { "label": "Location name", "info": "Empty = shop name." },
+      "lb_logo": { "label": "Location logo", "info": "Used in logo/image in markup." },
+      "lb_sameas": { "label": "Social profiles", "info": "URLs separated by comma or spaces." },
+      "lb_phone": { "label": "Phone" },
+      "lb_email": { "label": "Email" },
       "lb_price_range": { "label": "Price range" },
 
       "lb_address_street": { "label": "Street address" },
-      "lb_address_city":   { "label": "City" },
+      "lb_address_city": { "label": "City" },
       "lb_address_region": { "label": "Region/State" },
       "lb_address_postal": { "label": "Postal code" },
-      "lb_address_country":{ "label": "Country (ISO-2)" },
+      "lb_address_country": { "label": "Country (ISO-2)" },
 
       "lb_geo_coords": { "label": "Coords lat,lng", "info": "E.g. 40.4167,-3.7033" },
-      "lb_maps_url":   { "label": "Google Maps URL", "info": "Paste your listing URL." },
+      "lb_maps_url": { "label": "Google Maps URL", "info": "Paste your listing URL." },
 
-      "lb_area_served":     { "label": "Area served", "info": "ISO-2 country codes, comma-separated." },
+      "lb_area_served": { "label": "Area served", "info": "ISO-2 country codes, comma-separated." },
       "lb_payment_methods": { "label": "Payment methods", "info": "Free text (Visa, MasterCard…)." },
       "lb_currencies_accepted": { "label": "Currencies accepted" },
 
@@ -138,12 +139,12 @@
           "manual_json": "Manual (JSON)"
         }
       },
-      "lb_hours_json":   { "label": "Hours (manual JSON)", "info": "Array of OpeningHoursSpecification." },
-      "lb_hours_weekdays_open":  { "label": "Open (Mon–Fri)" },
+      "lb_hours_json": { "label": "Hours (manual JSON)", "info": "Array of OpeningHoursSpecification." },
+      "lb_hours_weekdays_open": { "label": "Open (Mon–Fri)" },
       "lb_hours_weekdays_close": { "label": "Close (Mon–Fri)" },
-      "lb_hours_sat_open":       { "label": "Open (Sat)" },
-      "lb_hours_sat_close":      { "label": "Close (Sat)" },
-      "lb_hours_sun_open":       { "label": "Open (Sun)", "info": "Leave blank if closed." }
+      "lb_hours_sat_open": { "label": "Open (Sat)" },
+      "lb_hours_sat_close": { "label": "Close (Sat)" },
+      "lb_hours_sun_open": { "label": "Open (Sun)", "info": "Leave blank if closed." }
     }
   }
 }
