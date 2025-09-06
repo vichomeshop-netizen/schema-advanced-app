@@ -38,8 +38,10 @@ export async function loader({ request }) {
 }
 
 /* ==========================================================
-   Tarjeta SIN input: detecta rutas y muestra estado automáticamente
-   Busca exactamente <script type="application/ld+json" data-sae="1">
+   Tarjeta SIN input:
+   - Busca EXACTAMENTE <script type="application/ld+json" data-sae="1"> en HTML publicado (fetch)
+   - NO hace ping automático
+   - Al pulsar "Verificar ahora", abre ?sae_ping=1 y espera postMessage (sin fetch de respaldo)
    ========================================================== */
 function SchemaStatusCardNoInput({ shop }) {
   const [paths, setPaths] = useState(["/"]);
@@ -48,40 +50,27 @@ function SchemaStatusCardNoInput({ shop }) {
   const [detected, setDetected] = useState(null); // null | boolean
   const [lastPingAt, setLastPingAt] = useState(null);
   const [method, setMethod] = useState("fetch");
-
-  // Control de sesión de verificación para no pisar resultados
   const verifyRef = useRef({ id: 0, done: false });
 
   function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
-  function log(...a) { try { console.debug("[SAE]", ...a); } catch {} }
 
-  // 🔔 Escucha el postMessage del escaparate (?sae_ping=1)
+  // 🔔 Listener de ping (vía postMessage desde el escaparate)
   useEffect(() => {
-  function onMessage(ev) {
-    const d = ev?.data;
-    if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
+    function onMessage(ev) {
+      const d = ev?.data;
+      if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
+      verifyRef.current.done = true;
+      setDetected(!!d.ok);
+      setLastPingAt(new Date());
+      setMethod("ping");
+      setLoading(false);
+      toast(d.ok ? "Schema detectado (ping)" : "No detectado (ping)");
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
-    // Actualiza UI
-    setDetected(!!d.ok);
-    setLastPingAt(new Date());
-    setMethod("ping");
-
-    // ✅ Persistir desde el panel (no lo bloquea el ad-blocker)
-    fetch("/api/schema/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        shop,                        // lo tienes del loader
-        path: d.path || activePath,  // ruta detectada
-        ok: !!d.ok,
-      }),
-    }).catch(() => {});
-  }
-  window.addEventListener("message", onMessage);
-  return () => window.removeEventListener("message", onMessage);
-}, [shop, activePath]);
-
-  // Descubre rutas candidatas al montar y hace 1ª comprobación (publicado)
+  // Descubre rutas candidatas y hace 1ª comprobación del tema publicado (fetch)
   useEffect(() => {
     (async () => {
       try {
@@ -107,12 +96,8 @@ function SchemaStatusCardNoInput({ shop }) {
   }, [shop]);
 
   async function loadStatus(mode = "fetch", path = activePath) {
-    // Si ya tenemos ping satisfactorio para esta sesión, no pisar
-    if (verifyRef.current.done && mode !== "ping") {
-      log("Ignoro fetch porque ya llegó ping");
-      return;
-    }
-
+    // Si ya llegó ping en esta sesión, no sobreescribas con fetch
+    if (verifyRef.current.done && mode !== "ping") return;
     setLoading(true);
     try {
       const r = await fetch(
@@ -120,15 +105,15 @@ function SchemaStatusCardNoInput({ shop }) {
       );
       const j = await r.json();
 
-      // Heurística password/redirects (opcional si tu API lo devuelve)
+      // Heurística password/redirects (si tu API lo devuelve)
       if (j?.blocked === "password" || j?.htmlIncludesPassword) {
         setDetected(null);
         setMethod("fetch/password");
+        setLoading(false);
         toast("La tienda parece protegida con contraseña o redirigida. Usa preview o quita la password.");
         return;
       }
 
-      // Solo aplica si no hubo ping
       if (!verifyRef.current.done) {
         setDetected(!!j.detected);
         setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
@@ -144,21 +129,19 @@ function SchemaStatusCardNoInput({ shop }) {
     toast("Comprobado (publicado)");
   }
 
+  // ▶️ Solo al pulsar. Sin ping automático. Sin fetch de respaldo.
   function verifyNow() {
     setLoading(true);
     setDetected(null);
 
     const id = (verifyRef.current.id || 0) + 1;
     verifyRef.current = { id, done: false };
-
     toast("Verificando en el escaparate…");
+
     const url = `https://${shop}${activePath}?sae_ping=1`;
+    const win = window.open(url, "_blank"); // sin noopener (necesitamos opener)
 
-    // 1) Intento principal: abrir pestaña (SIN noopener para tener window.opener)
-    const win = window.open(url, "_blank");
-    log("Abrí ventana:", !!win);
-
-    // 2) Fallback si el navegador bloquea el popup → iframe oculto (usará window.parent)
+    // Fallback: si el popup es bloqueado, usa iframe oculto
     if (!win) {
       const iframe = document.createElement("iframe");
       iframe.src = url;
@@ -172,16 +155,16 @@ function SchemaStatusCardNoInput({ shop }) {
       });
       document.body.appendChild(iframe);
       setTimeout(() => { try { iframe.remove(); } catch {} }, 25000);
-      log("Usando fallback iframe");
     }
 
-    // 3) Fallback visual: si en 12s no llegó ping, consultamos HTML publicado
+    // SIN fetch de respaldo: si no llega ping, terminamos el loading a los 20s
     setTimeout(() => {
       if (verifyRef.current.id === id && !verifyRef.current.done) {
-        log("No llegó ping a tiempo; lanzo fetch fallback");
-        loadStatus("fetch", activePath);
+        setLoading(false);
+        setMethod("ping/timeout");
+        toast("No llegó el ping (timeout). Vuelve a intentar.");
       }
-    }, 12000);
+    }, 20000);
   }
 
   const badge = useMemo(() => {
@@ -305,7 +288,9 @@ function SchemaStatusCardNoInput({ shop }) {
       </div>
 
       <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-        Busco estrictamente <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code> en el HTML publicado. Si tu tienda no es pública, usa el botón de ping.
+        Ping: abre el escaparate con <code>?sae_ping=1</code> y envía un <code>postMessage</code> al panel.
+        Fetch: inspecciona el HTML del tema publicado para buscar{" "}
+        <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code>.
       </p>
     </section>
   );
@@ -366,7 +351,7 @@ const TEXT = {
         <li><strong>ContactPage</strong> and <strong>AboutPage</strong></li>
       </ul>
     `,
-    ctas: { openEditor: "Open Theme Editor", openRRT: "Open Rich Results Test" },
+    ctas: { openEditor: "Open Rich Results Test", openRRT: "Open Rich Results Test" },
     badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "No subscription",
   },
@@ -401,7 +386,7 @@ const TEXT = {
   },
 };
 
-// Helper: abrir editor de temas (mismo patrón que usas en el layout)
+// Helper: abrir editor de temas
 function openThemeEditorFromQS() {
   if (typeof window === "undefined") return;
   const qs = new URLSearchParams(window.location.search);
@@ -477,7 +462,6 @@ export default function Overview() {
             {t.ctas.openEditor}
           </button>
 
-          {/* ÚNICO CTA a Rich Results (sin duplicar link) */}
           <a
             href="https://search.google.com/test/rich-results"
             target="_blank"
@@ -519,7 +503,3 @@ export default function Overview() {
     </div>
   );
 }
-
-
-
-
