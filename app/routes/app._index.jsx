@@ -50,10 +50,22 @@ function SchemaStatusCardNoInput({ shop }) {
   const [method, setMethod] = useState("fetch");
 
   function toast(msg) {
-    try {
-      window.shopify?.toast?.show(msg);
-    } catch {}
+    try { window.shopify?.toast?.show(msg); } catch {}
   }
+
+  // 🔔 Escucha el postMessage del escaparate (?sae_ping=1)
+  useEffect(() => {
+    function onMessage(ev) {
+      const d = ev?.data;
+      if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
+      setDetected(!!d.ok);
+      setLastPingAt(new Date());
+      setMethod("ping");
+      try { window.shopify?.toast?.show(d.ok ? "Schema detectado (ping)" : "No detectado (ping)"); } catch {}
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // Descubre rutas candidatas al montar y hace 1ª comprobación (publicado)
   useEffect(() => {
@@ -104,17 +116,13 @@ function SchemaStatusCardNoInput({ shop }) {
     setLoading(true);
     setDetected(null);
     toast("Verificando en el escaparate…");
-    // Abre en nueva pestaña para no sacar al merchant del panel
+
     const url = `https://${shop}${activePath}?sae_ping=1`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Tras el render del storefront, vuelve a comprobar
-    setTimeout(() => loadStatus("db", activePath), 4000);
+    // ⚠️ Importante: abrir SIN noopener para que window.opener exista
+    window.open(url, "_blank");
+
+    // Fallback por si el postMessage no llega (CSP, bloqueadores, etc.)
+    setTimeout(() => loadStatus("fetch", activePath), 7000);
   }
 
   const badge = useMemo(() => {
@@ -127,14 +135,10 @@ function SchemaStatusCardNoInput({ shop }) {
   const chipLabel = (p) =>
     p === "/"
       ? "Home"
-      : p.startsWith("/products/")
-      ? "Producto"
-      : p.startsWith("/collections/")
-      ? "Colección"
-      : p.startsWith("/blogs/")
-      ? "Artículo"
-      : p.startsWith("/pages/")
-      ? "Página"
+      : p.startsWith("/products/") ? "Producto"
+      : p.startsWith("/collections/") ? "Colección"
+      : p.startsWith("/blogs/") ? "Artículo"
+      : p.startsWith("/pages/") ? "Página"
       : p;
 
   return (
@@ -179,10 +183,7 @@ function SchemaStatusCardNoInput({ shop }) {
           return (
             <button
               key={p}
-              onClick={() => {
-                setActivePath(p);
-                checkPublished(p);
-              }}
+              onClick={() => { setActivePath(p); checkPublished(p); }}
               type="button"
               title={p}
               style={{
@@ -459,5 +460,6 @@ export default function Overview() {
     </div>
   );
 }
+
 
 

@@ -798,53 +798,102 @@
 {%- endif -%}
 
 
+{%- comment -%}
+  APP EMBED: Inyección del schema + detector SAE (sin añadir {% schema %})
+  - PÉGALO justo ANTES del {% schema %} existente de este mismo archivo.
+  - Detecta EXACTAMENTE: <script type="application/ld+json" data-sae="1">
+  - En modo ?sae_ping=1, avisa al panel via postMessage y (opcional) envía beacon.
+{%- endcomment -%}
+
+{%- comment -%} 1) Tu script que inyecta los JSON-LD {%- endcomment -%}
 <script
   src="https://schema-advanced-app.vercel.app/public/embed?shop={{ shop.permanent_domain }}&v=2"
   defer>
 </script>
 
+{%- comment -%}
+  2) Detector SOLO si la URL lleva ?sae_ping=1
+     - Busca EXACTO data-sae="1" en scripts type="application/ld+json"
+     - Envía postMessage al panel (asegúrate de abrir la pestaña SIN `noopener`)
+     - Beacon opcional al backend
+     - Debug: &sae_debug=1 añade logs en consola
+{%- endcomment -%}
 {%- if request.params.sae_ping == '1' -%}
 <script>
 (function () {
-  // Selector ESTRICTO: exactamente <script type="application/ld+json" data-sae="1">
+  var DEBUG = (location.search.indexOf('sae_debug=1') !== -1);
+  function log(){ if (DEBUG && typeof console !== 'undefined') try{ console.log.apply(console, arguments); }catch(_){} }
+
+  // EXACTO: <script type="application/ld+json" data-sae="1">
   function hasSAE() {
-    return !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
+    var ok = !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
+    log('[SAE] hasSAE =', ok);
+    return ok;
   }
 
-  function send(ok) {
-    var url = "https://schema-advanced-app.vercel.app/api/schema/ping"
-      + "?shop={{ shop.permanent_domain | url_encode }}"
-      + "&status=" + (ok ? "1" : "0")
-      + "&path=" + encodeURIComponent(location.pathname + location.search);
-    if (navigator.sendBeacon) navigator.sendBeacon(url);
-    else fetch(url, { method: "POST", keepalive: true });
+  function notifyPanel(ok) {
+    try {
+      var target = window.opener || window.parent; // el panel debe abrir SIN noopener
+      if (target && typeof target.postMessage === 'function') {
+        var payload = { source: 'schema-advanced', type: 'sae-status', ok: !!ok, path: location.pathname };
+        target.postMessage(payload, '*'); // limita origin si quieres
+        log('[SAE] postMessage ->', payload);
+      } else {
+        log('[SAE] sin opener/parent para postMessage');
+      }
+    } catch (e) { log('[SAE] postMessage error:', e); }
   }
 
-  // Intento inmediato si ya está el DOM listo
-  if (document.readyState !== "loading" && hasSAE()) {
-    return send(true);
+  function beacon(ok) {
+    try {
+      var embed = document.querySelector('script[src*="/public/embed"]');
+      var base = embed ? new URL(embed.src).origin : 'https://schema-advanced-app.vercel.app';
+      var url = base + '/api/schema/ping'
+        + '?shop={{ shop.permanent_domain | url_encode }}'
+        + '&status=' + (ok ? '1' : '0')
+        + '&path=' + encodeURIComponent(location.pathname + location.search);
+      if (navigator.sendBeacon) { navigator.sendBeacon(url); }
+      else { fetch(url, { method: 'POST', mode: 'no-cors', keepalive: true }); }
+      log('[SAE] beacon ->', url);
+    } catch (e) { log('[SAE] beacon error:', e); }
   }
 
-  // Espera cambios hasta 3 s por si tu app inyecta tarde
-  var deadline = Date.now() + 3000;
+  var sent = false;
+  function sendAll(ok){
+    if (sent) return; sent = true;
+    notifyPanel(ok);
+    beacon(ok); // opcional
+  }
+
+  // Si ya está el DOM con tu JSON-LD marcado → notifica ya
+  if (document.readyState !== 'loading' && hasSAE()) {
+    return sendAll(true);
+  }
+
+  // Observa el DOM por si el embed inyecta tarde (hasta ~8 s)
+  var deadline = Date.now() + 8000;
   var obs = new MutationObserver(function () {
-    if (hasSAE()) { obs.disconnect(); send(true); }
-    else if (Date.now() > deadline) { obs.disconnect(); send(false); }
+    var ok = hasSAE();
+    if (ok) { try{obs.disconnect();}catch(_){}; sendAll(true); }
+    else if (Date.now() > deadline) { try{obs.disconnect();}catch(_){}; sendAll(false); }
   });
 
   function start() {
-    try { obs.observe(document.documentElement, { childList: true, subtree: true }); } catch(_) { send(hasSAE()); }
-    setTimeout(function () { try { obs.disconnect(); } catch(_){}; send(hasSAE()); }, 3100);
+    try { obs.observe(document.documentElement, { childList: true, subtree: true }); }
+    catch (_) { sendAll(hasSAE()); }
+    // Último seguro por si no salta el observer
+    setTimeout(function(){ try{obs.disconnect();}catch(_){}; sendAll(hasSAE()); }, 8200);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start, { once: true });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
   } else {
     start();
   }
 })();
 </script>
 {%- endif -%}
+
 
 
 
