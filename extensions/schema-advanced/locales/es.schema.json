@@ -101,50 +101,51 @@
     }
   },
 
-"sae_lb": { "name": "SAE LocalBusiness" },
+  "sae_lb": { "name": "SAE LocalBusiness" },
 
-"lb": {
-  "settings": {
-    "lb_enable": { "label": "Activar LocalBusiness", "info": "Emite el JSON-LD del local físico." },
-    "lb_type":    { "label": "Tipo de negocio" },
-    "lb_name":    { "label": "Nombre del local", "info": "Vacío = nombre de la tienda." },
-    "lb_logo":    { "label": "Logo del local", "info": "Se usa en logo/image del marcado." },
-    "lb_sameas":  { "label": "Perfiles sociales", "info": "URLs separadas por coma o espacios." },
-    "lb_phone":   { "label": "Teléfono" },
-    "lb_email":   { "label": "Email" },
-    "lb_price_range": { "label": "Rango de precios" },
+  "lb": {
+    "settings": {
+      "lb_enable": { "label": "Activar LocalBusiness", "info": "Emite el JSON-LD del local físico." },
+      "lb_type":    { "label": "Tipo de negocio" },
+      "lb_name":    { "label": "Nombre del local", "info": "Vacío = nombre de la tienda." },
+      "lb_logo":    { "label": "Logo del local", "info": "Se usa en logo/image del marcado." },
+      "lb_sameas":  { "label": "Perfiles sociales", "info": "URLs separadas por coma o espacios." },
+      "lb_phone":   { "label": "Teléfono" },
+      "lb_email":   { "label": "Email" },
+      "lb_price_range": { "label": "Rango de precios" },
 
-    "lb_address_street": { "label": "Calle y número" },
-    "lb_address_city":   { "label": "Localidad" },
-    "lb_address_region": { "label": "Provincia/Región" },
-    "lb_address_postal": { "label": "Código postal" },
-    "lb_address_country":{ "label": "País (ISO-2)" },
+      "lb_address_street": { "label": "Calle y número" },
+      "lb_address_city":   { "label": "Localidad" },
+      "lb_address_region": { "label": "Provincia/Región" },
+      "lb_address_postal": { "label": "Código postal" },
+      "lb_address_country":{ "label": "País (ISO-2)" },
 
-    "lb_geo_coords": { "label": "Coordenadas lat,lng", "info": "Ej.: 40.4167,-3.7033" },
-    "lb_maps_url":   { "label": "URL de Google Maps", "info": "Pega la URL de tu ficha." },
+      "lb_geo_coords": { "label": "Coordenadas lat,lng", "info": "Ej.: 40.4167,-3.7033" },
+      "lb_maps_url":   { "label": "URL de Google Maps", "info": "Pega la URL de tu ficha." },
 
-    "lb_area_served":     { "label": "Países atendidos", "info": "Códigos ISO-2 separados por comas." },
-    "lb_payment_methods": { "label": "Métodos de pago", "info": "Texto libre (Visa, MasterCard…)." },
-    "lb_currencies_accepted": { "label": "Monedas aceptadas" },
+      "lb_area_served":     { "label": "Países atendidos", "info": "Códigos ISO-2 separados por comas." },
+      "lb_payment_methods": { "label": "Métodos de pago", "info": "Texto libre (Visa, MasterCard…)." },
+      "lb_currencies_accepted": { "label": "Monedas aceptadas" },
 
-    "lb_opening_mode": {
-      "label": "Modo de horarios",
-      "options": {
-        "weekly": "Semanal",
-        "24_7": "24/7",
-        "closed": "Cerrado",
-        "manual_json": "Manual (JSON)"
-      }
-    },
-    "lb_hours_json":   { "label": "Horas (JSON manual)", "info": "Array de OpeningHoursSpecification." },
-    "lb_hours_weekdays_open":  { "label": "Apertura (L–V)" },
-    "lb_hours_weekdays_close": { "label": "Cierre (L–V)" },
-    "lb_hours_sat_open":       { "label": "Apertura (Sábado)" },
-    "lb_hours_sat_close":      { "label": "Cierre (Sábado)" },
-    "lb_hours_sun_open":       { "label": "Apertura (Domingo)", "info": "Déjalo vacío si está cerrado." }
+      "lb_opening_mode": {
+        "label": "Modo de horarios",
+        "options": {
+          "weekly": "Semanal",
+          "24_7": "24/7",
+          "closed": "Cerrado",
+          "manual_json": "Manual (JSON)"
+        }
+      },
+      "lb_hours_json":   { "label": "Horas (JSON manual)", "info": "Array de OpeningHoursSpecification." },
+      "lb_hours_weekdays_open":  { "label": "Apertura (L–V)" },
+      "lb_hours_weekdays_close": { "label": "Cierre (L–V)" },
+      "lb_hours_sat_open":       { "label": "Apertura (Sábado)" },
+      "lb_hours_sat_close":      { "label": "Cierre (Sábado)" },
+      "lb_hours_sun_open":       { "label": "Apertura (Domingo)", "info": "Déjalo vacío si está cerrado." }
+    }
   }
 }
-}
+
 
 
 
