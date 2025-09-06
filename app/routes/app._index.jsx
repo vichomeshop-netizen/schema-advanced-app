@@ -2,6 +2,7 @@
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
 import { prisma } from "~/lib/prisma.server";
+import SchemaVerifyButton from "~/components/SchemaVerifyButton";
 
 /** Deriva shop desde host (base64url) si falta ?shop= */
 function decodeShopFromHost(hostB64url) {
@@ -65,6 +66,9 @@ const TEXT = {
     ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plan activo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sin suscripción",
+    verifyTitle: "Verificar inyección del schema",
+    verifyHelp:
+      "Abre el escaparate con ?sae_ping=1 y comprueba si existe exactamente <script type=\"application/ld+json\" data-sae=\"1\">. Si el snippet de ping está en tu tema, verás el estado aquí tras unos segundos.",
   },
   en: {
     title: "Schema Advanced — Overview",
@@ -94,6 +98,9 @@ const TEXT = {
     ctas: { openEditor: "Open Theme Editor", openRRT: "Open Rich Results Test" },
     badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "No subscription",
+    verifyTitle: "Verify schema injection",
+    verifyHelp:
+      "Opens the storefront with ?sae_ping=1 and checks for exactly <script type=\"application/ld+json\" data-sae=\"1\">. If the ping snippet is installed, you’ll see status here in a few seconds.",
   },
   pt: {
     title: "Schema Advanced — Visão geral",
@@ -123,6 +130,9 @@ const TEXT = {
     ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plano ativo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sem assinatura",
+    verifyTitle: "Verificar injeção do schema",
+    verifyHelp:
+      "Abre a vitrine com ?sae_ping=1 e verifica exatamente <script type=\"application/ld+json\" data-sae=\"1\">. Se o snippet de ping estiver instalado, verá o estado aqui em alguns segundos.",
   },
 };
 
@@ -142,7 +152,8 @@ export default function Overview() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
-  const { subscriptionStatus, planName } = useLoaderData();
+  // ⬇️ Ahora exponemos también `shop` para pasárselo al botón si lo necesita
+  const { subscriptionStatus, planName, shop } = useLoaderData();
   const isActive = subscriptionStatus === "ACTIVE";
 
   return (
@@ -215,6 +226,25 @@ export default function Overview() {
         </div>
       </section>
 
+      {/* --- añadido: verificador de inyección --- */}
+      <section
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 10,
+          padding: 16,
+          marginTop: 12,
+        }}
+      >
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.verifyTitle}</h2>
+        <p style={{ marginTop: 0, color: "#374151" }}>{t.verifyHelp}</p>
+
+        {/* Usa tu botón (obtiene ?shop del QS). Pasamos también shop por si tu versión lo requiere. */}
+        <div style={{ marginTop: 8 }}>
+          <SchemaVerifyButton defaultPath="/" shop={shop} />
+        </div>
+      </section>
+
       {/* Guía rápida */}
       <section
         style={{
@@ -231,6 +261,4 @@ export default function Overview() {
     </div>
   );
 }
-
-
 

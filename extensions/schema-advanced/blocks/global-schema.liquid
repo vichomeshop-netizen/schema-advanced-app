@@ -48,6 +48,8 @@
 {%- endcase -%}
 
 
+
+
 {%- comment -%} ====== Organization (todas las páginas) ====== {%- endcomment -%}
 {%- assign _public_email = block.settings.org_email | default: shop.customer_email | default: shop.email -%}
 
@@ -801,6 +803,48 @@
   defer>
 </script>
 
+{%- if request.params.sae_ping == '1' -%}
+<script>
+(function () {
+  // Selector ESTRICTO: exactamente <script type="application/ld+json" data-sae="1">
+  function hasSAE() {
+    return !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
+  }
+
+  function send(ok) {
+    var url = "https://schema-advanced-app.vercel.app/api/schema/ping"
+      + "?shop={{ shop.permanent_domain | url_encode }}"
+      + "&status=" + (ok ? "1" : "0")
+      + "&path=" + encodeURIComponent(location.pathname + location.search);
+    if (navigator.sendBeacon) navigator.sendBeacon(url);
+    else fetch(url, { method: "POST", keepalive: true });
+  }
+
+  // Intento inmediato si ya está el DOM listo
+  if (document.readyState !== "loading" && hasSAE()) {
+    return send(true);
+  }
+
+  // Espera cambios hasta 3 s por si tu app inyecta tarde
+  var deadline = Date.now() + 3000;
+  var obs = new MutationObserver(function () {
+    if (hasSAE()) { obs.disconnect(); send(true); }
+    else if (Date.now() > deadline) { obs.disconnect(); send(false); }
+  });
+
+  function start() {
+    try { obs.observe(document.documentElement, { childList: true, subtree: true }); } catch(_) { send(hasSAE()); }
+    setTimeout(function () { try { obs.disconnect(); } catch(_){}; send(hasSAE()); }, 3100);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    start();
+  }
+})();
+</script>
+{%- endif -%}
 
 
 
