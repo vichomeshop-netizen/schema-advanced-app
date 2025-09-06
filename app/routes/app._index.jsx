@@ -369,7 +369,7 @@ export default function Overview() {
       <section
         style={{
           background: "#fff",
-          border: "1px solid "#e5e7eb",
+          border: "1px solid #e5e7eb",
           borderRadius: 10,
           padding: 16,
           marginTop: 12,
