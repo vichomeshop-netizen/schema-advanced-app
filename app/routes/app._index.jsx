@@ -57,22 +57,29 @@ function SchemaStatusCardNoInput({ shop }) {
 
   // 🔔 Escucha el postMessage del escaparate (?sae_ping=1)
   useEffect(() => {
-    function onMessage(ev) {
-      const d = ev?.data;
-      if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
-      log("postMessage recibido:", d);
-      // Marcar verificación actual como satisfecha
-      verifyRef.current.done = true;
+  function onMessage(ev) {
+    const d = ev?.data;
+    if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
 
-      // Si el usuario cambió de ruta mientras tanto, aún así mostramos el estado
-      setDetected(!!d.ok);
-      setLastPingAt(new Date());
-      setMethod("ping");
-      toast(d.ok ? "Schema detectado (ping)" : "No detectado (ping)");
-    }
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
+    // Actualiza UI
+    setDetected(!!d.ok);
+    setLastPingAt(new Date());
+    setMethod("ping");
+
+    // ✅ Persistir desde el panel (no lo bloquea el ad-blocker)
+    fetch("/api/schema/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        shop,                        // lo tienes del loader
+        path: d.path || activePath,  // ruta detectada
+        ok: !!d.ok,
+      }),
+    }).catch(() => {});
+  }
+  window.addEventListener("message", onMessage);
+  return () => window.removeEventListener("message", onMessage);
+}, [shop, activePath]);
 
   // Descubre rutas candidatas al montar y hace 1ª comprobación (publicado)
   useEffect(() => {
