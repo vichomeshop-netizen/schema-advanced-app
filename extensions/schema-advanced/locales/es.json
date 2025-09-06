@@ -1,5 +1,6 @@
 {
   "name": "Schema Advanced ES/PT",
+
   "settings": {
     "language_mode": {
       "label": "Idioma",
@@ -11,6 +12,7 @@
         "en": "Inglés"
       }
     },
+
     "org_logo": {
       "label": "Logo de la organización",
       "info": "Logo de alta calidad usado como imagen de Organization en rich results."
@@ -27,6 +29,15 @@
       "label": "Perfiles sociales (uno por línea)",
       "info": "Pega URLs completas (ej.: https://www.instagram.com/tu-marca). Uno por línea."
     },
+    "org_legal_name": {
+      "label": "Razón social",
+      "info": "Sobrescribe Organization.legalName. Vacío = nombre de la tienda."
+    },
+    "org_alternate_name": {
+      "label": "Nombre alternativo",
+      "info": "Un único nombre alternativo para la organización (sin comas)."
+    },
+
     "address_street": {
       "label": "Calle y número",
       "info": "Calle/dirección de tu negocio (opcional pero recomendado)."
@@ -43,6 +54,7 @@
       "label": "País (ISO-2, ej.: ES o PT)",
       "info": "Código de país de dos letras para tu dirección (ej.: ES, PT)."
     },
+
     "returns_days": {
       "label": "Plazo de devolución (días)",
       "info": "Número de días de tu política de devoluciones (MerchantReturnPolicy)."
@@ -51,14 +63,7 @@
       "label": "Devoluciones gratuitas",
       "info": "Si está activo, `returnFees` será FreeReturn; si no, ReturnShippingFees."
     },
-    "website_on_home_only": {
-      "label": "Emitir WebSite solo en Home",
-      "info": "Actívalo para emitir WebSite JSON-LD solo en la página de inicio."
-    },
-    "force_availability": {
-      "label": "Forzar disponibilidad (debug)",
-      "info": "Sobrescribe la disponibilidad en Product (p. ej. InStock, OutOfStock). Deja en blanco para usar el stock real."
-    },
+
     "shipping_countries": {
       "label": "Países de envío (lista ISO-2)",
       "info": "Códigos de país ISO-2 separados por comas (ej.: ES,PT,FR)."
@@ -71,6 +76,7 @@
       "label": "Manipulación (días, min-máx)",
       "info": "Rango para `handlingTime` antes del envío (ej.: 0-1)."
     },
+
     "include_shipping_rate": {
       "label": "Incluir coste de envío",
       "info": "Si está activo, añade `shippingRate` (MonetaryAmount) al Offer/ShippingDetails."
@@ -79,6 +85,7 @@
       "label": "Importe de envío",
       "info": "Valor numérico del `shippingRate` (la moneda usa la del carrito)."
     },
+
     "emit_collection_auto": {
       "label": "Emitir Collection/FAQ en colecciones",
       "info": "Emite WebPage/CollectionPage y FAQPage si existe el metafield configurado."
@@ -95,21 +102,17 @@
       "label": "Emitir HowTo en artículos",
       "info": "Genera automáticamente un HowTo a partir de los H2 (si hay 2+ pasos)."
     },
+    "website_on_home_only": {
+      "label": "Emitir WebSite solo en Home",
+      "info": "Actívalo para emitir WebSite JSON-LD solo en la página de inicio."
+    },
+    "force_availability": {
+      "label": "Forzar disponibilidad (debug)",
+      "info": "Sobrescribe la disponibilidad en Product (p. ej. InStock, OutOfStock). Deja en blanco para usar el stock real."
+    },
     "suppress_theme_jsonld": {
       "label": "Eliminar JSON-LD del tema (beta)",
       "info": "Elimina scripts JSON-LD ajenos a la app (Product, Organization, WebSite, BreadcrumbList, FAQPage, BlogPosting/Article, AboutPage, ContactPage) inyectados por el tema para evitar duplicados. Úsalo con cautela y prueba bien."
-    }
-  },
-
-  "sae_lb": { "name": "SAE LocalBusiness" },
-
-  {
-  "name": "Schema Advanced ES/PT",
-
-  "settings": {
-    "emit_breadcrumbs": {
-      "label": "Emitir simple Breadcrumbs",
-      "info": "Activa para insertar Home → Collection → Product."
     }
   },
 
