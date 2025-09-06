@@ -49,6 +49,7 @@
 
 
 
+
 {%- comment -%} ====== Organization (todas las páginas) ====== {%- endcomment -%}
 {%- assign _public_email = block.settings.org_email | default: shop.customer_email | default: shop.email -%}
 
@@ -73,24 +74,8 @@
   {%- assign needle = '|' | append: u_full | append: '|' -%}
   {%- if _same_seen contains needle -%}{%- continue -%}{%- endif -%}
   {%- assign _same_seen = _same_seen | append: u_full | append: '|' -%}
-  {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _same_first %},{% endunless %}{{ u_full | json | replace: '\/','/' }}{%- endcapture -%}
+  {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _same_first %},{% endunless %}{{ u_full | json }}{%- endcapture -%}
   {%- assign _same_first = false -%}
-{%- endfor -%}
-
-{%- comment -%} alternateName: textarea separada por comas; limpia comillas y deduplica {%- endcomment -%}
-{%- assign _alt_raw = block.settings.org_alternate_names | default: '' -%}
-{%- assign _alt_parts = _alt_raw | split: ',' -%}
-{%- assign _alt_items = '' -%}
-{%- assign _alt_seen = '|' -%}
-{%- assign _alt_first = true -%}
-{%- for n in _alt_parts -%}
-  {%- assign v = n | strip | remove: '"' | remove: "'" -%}
-  {%- if v == '' -%}{%- continue -%}{%- endif -%}
-  {%- assign k = '|' | append: v | append: '|' -%}
-  {%- if _alt_seen contains k -%}{%- continue -%}{%- endif -%}
-  {%- assign _alt_seen = _alt_seen | append: v | append: '|' -%}
-  {%- capture _alt_items -%}{{ _alt_items }}{% unless _alt_first %},{% endunless %}{{ v | json }}{%- endcapture -%}
-  {%- assign _alt_first = false -%}
 {%- endfor -%}
 
 {%- comment -%} Countries: lee shipping_countries (block o section), normaliza alias y deduplica {%- endcomment -%}
@@ -111,8 +96,8 @@
     {%- when 'PT-BR' -%}{%- assign code = 'BR' -%}
     {%- when 'EL' -%}{%- assign code = 'GR' -%}
   {%- endcase -%}
-  {%- assign k2 = '|' | append: code | append: '|' -%}
-  {%- if _codes_seen contains k2 -%}{%- continue -%}{%- endif -%}
+  {%- assign k = '|' | append: code | append: '|' -%}
+  {%- if _codes_seen contains k -%}{%- continue -%}{%- endif -%}
   {%- assign _codes_seen = _codes_seen | append: code | append: '|' -%}
   {%- capture _codes_list -%}{{ _codes_list }}{% unless _codes_first %},{% endunless %}{{ code | json }}{%- endcapture -%}
   {%- assign _codes_first = false -%}
@@ -122,13 +107,12 @@
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }},
-  "url": {{ shop.url | json | replace: '\/','/' }},
+  "@id": {{ shop.url | append: "#org" | json }},
+  "url": {{ shop.url | json }},
   "name": {{ shop.name | json }},
-  "legalName": {{ block.settings.org_legal_name | default: shop.name | json }}{% if _alt_items != '' %},
-  "alternateName": [ {{ _alt_items }} ]{% endif %}{% if block.settings.org_logo %}
-  ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json | replace: '\/','/' }}
-  ,"image": { "@type": "ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}{% if _sameas_items != '' %}
+  "legalName": {{ shop.name | json }}{% if block.settings.org_logo %}
+  ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json }}
+  ,"image": { "@type": "ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json }} }{% endif %}{% if _sameas_items != '' %}
   ,"sameAs": [ {{ _sameas_items }} ]{% endif %}
   ,"email": {{ _public_email | json }}
   ,"contactPoint": {
@@ -158,7 +142,68 @@
 </script>
 
 
-  
+{%- comment -%} ====== LocalBusiness (hereda de Organization + extras simples) ====== {%- endcomment -%}
+{%- if block.settings.emit_localbusiness -%}
+  {%- if request.page_type == 'index' or template contains 'contact' or template contains 'about' -%}
+
+  {%- assign _lb_name    = block.settings.localbusiness_name | default: shop.name -%}
+  {%- assign _lb_phone   = block.settings.org_phone -%}
+  {%- assign _lb_email   = _public_email -%}
+  {%- assign _lb_street  = block.settings.address_street -%}
+  {%- assign _lb_city    = block.settings.address_city -%}
+  {%- assign _lb_postal  = block.settings.address_postal -%}
+  {%- assign _lb_country = block.settings.address_country | upcase -%}
+  {%- assign _lb_price   = block.settings.localbusiness_price_range | default: '' -%}
+  {%- assign _lb_gbp     = block.settings.localbusiness_gbp_url | to_string | strip -%}
+  {%- assign _lb_lat     = '' -%}
+  {%- assign _lb_lng     = '' -%}
+
+  {%- assign _geo = block.settings.localbusiness_geo_coords | to_string | strip -%}
+  {%- if _geo != '' and _geo contains ',' -%}
+    {%- assign _geo_parts = _geo | split: ',' -%}
+    {%- assign _lb_lat = _geo_parts[0] | strip -%}
+    {%- assign _lb_lng = _geo_parts[1] | strip -%}
+  {%- endif -%}
+
+<script type="application/ld+json" data-sae="1">
+{
+  "@context":"https://schema.org",
+  "@type":[
+    "LocalBusiness"
+    {%- if block.settings.localbusiness_type and block.settings.localbusiness_type != 'LocalBusiness' -%}
+    , {{ block.settings.localbusiness_type | json }}
+    {%- endif -%}
+  ],
+  "@id": {{ shop.url | append: "#local" | json | replace: '\/','/' }},
+  "url": {{ shop.url | json | replace: '\/','/' }},
+  "name": {{ _lb_name | json }},
+  {%- if _lb_phone and _lb_phone != '' -%}"telephone": {{ _lb_phone | json }},{%- endif -%}
+  {%- if _lb_email and _lb_email != '' -%}"email": {{ _lb_email | json }},{%- endif -%}
+  {%- if block.settings.org_logo -%}
+  "image": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }},
+  {%- endif -%}
+  "address": {
+    "@type":"PostalAddress"
+    {%- if _lb_street and _lb_street != '' -%}, "streetAddress": {{ _lb_street | json }}{%- endif -%}
+    {%- if _lb_city   and _lb_city   != '' -%}, "addressLocality": {{ _lb_city | json }}{%- endif -%}
+    {%- if _lb_postal and _lb_postal != '' -%}, "postalCode": {{ _lb_postal | json }}{%- endif -%}
+    {%- if _lb_country and _lb_country != '' -%}, "addressCountry": {{ _lb_country | json }}{%- endif -%}
+  }
+  {%- if _lb_gbp != '' -%},
+  "sameAs": [ {{ _lb_gbp | json }} ]
+  {%- endif -%}
+  {%- if _lb_lat != '' and _lb_lng != '' -%},
+  "geo": { "@type":"GeoCoordinates", "latitude": {{ _lb_lat | replace: ',', '.' }}, "longitude": {{ _lb_lng | replace: ',', '.' }} },
+  "hasMap": {{ "https://www.google.com/maps?q=" | append: _lb_lat | append: "," | append: _lb_lng | json }}
+  {%- elsif _lb_gbp != '' -%},
+  "hasMap": {{ _lb_gbp | json }}
+  {%- endif -%}
+  {%- if _lb_price != '' -%}, "priceRange": {{ _lb_price | json }}{%- endif -%},
+  "parentOrganization": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
+}
+</script>
+  {%- endif -%}
+{%- endif -%}    
 
 
 
@@ -802,6 +847,10 @@
 </script>
 
 
+
+
+
+
 {% schema %}
 {
   "name": "t:name",
@@ -823,16 +872,6 @@
       "label": "t:settings.org_logo.label",
       "info":  "t:settings.org_logo.info"
     },
-
-    { "type": "text", "id": "org_legal_name",
-      "label": "t:settings.org_legal_name.label",
-      "info":  "t:settings.org_legal_name.info"
-    },
-    { "type": "textarea", "id": "org_alternate_names",
-      "label": "t:settings.org_alternate_names.label",
-      "info":  "t:settings.org_alternate_names.info"
-    },
-
     { "type": "text", "id": "org_phone",
       "label": "t:settings.org_phone.label",
       "info":  "t:settings.org_phone.info"
@@ -909,8 +948,8 @@
     },
 
     { "type": "checkbox", "id": "emit_breadcrumbs",
-      "label": "t:settings.emit_breadcrumbs.label",
-      "info":  "t:settings.emit_breadcrumbs.info",
+      "label": "Emitir Breadcrumbs simples",
+      "info":  "Activa para insertar un BreadcrumbList Home → Colección → Producto.",
       "default": true
     },
 
@@ -918,16 +957,41 @@
       "label": "t:settings.suppress_theme_jsonld.label",
       "info":  "t:settings.suppress_theme_jsonld.info",
       "default": true
+    },
+
+    { "type": "checkbox", "id": "emit_localbusiness",
+      "label": "Emitir LocalBusiness/Store (solo si hay tienda física)",
+      "default": false
+    },
+    { "type": "select", "id": "localbusiness_type",
+      "label": "Tipo de negocio (específico)",
+      "options": [
+        { "value": "HardwareStore", "label": "HardwareStore (ferretería)" },
+        { "value": "Store", "label": "Store (tienda genérica)" },
+        { "value": "LocalBusiness", "label": "LocalBusiness (genérico)" },
+        { "value": "HomeAndConstructionBusiness", "label": "HomeAndConstructionBusiness" }
+      ],
+      "default": "HardwareStore"
+    },
+    { "type": "text", "id": "localbusiness_name",
+      "label": "Nombre del local (opcional)",
+      "info": "Vacío = usa el nombre de la tienda."
+    },
+    { "type": "text", "id": "localbusiness_gbp_url",
+      "label": "URL de Google Business/Maps (opcional)",
+      "info": "Ej.: https://g.page/tu-ficha o la URL de Google Maps del local"
+    },
+    { "type": "text", "id": "localbusiness_geo_coords",
+      "label": "Coordenadas \"lat,lng\" (override)",
+      "info": "Ej.: 38.239,-1.420 — prioriza sobre la URL para geo/hasMap."
+    },
+    { "type": "text", "id": "localbusiness_price_range",
+      "label": "priceRange (opcional)",
+      "default": "€€"
     }
   ]
 }
 {% endschema %}
-
-
-
-
-
-
 
 
 

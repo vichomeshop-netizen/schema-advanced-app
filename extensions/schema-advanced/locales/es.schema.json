@@ -83,6 +83,10 @@
       "label": "Emitir Collection/FAQ en colecciones",
       "info": "Emite WebPage/CollectionPage y FAQPage si existe el metafield configurado."
     },
+  "emit_breadcrumbs": {
+      "label": "Emitir simple Breadcrumbs",
+      "info": "Activa para insertar Home → Collection → Product."
+    },
     "faq_handle": {
       "label": "Handle del metafield FAQ (namespace.key)",
       "info": "Un único handle como `custom.faq`. Crea un *metafield de Colección* para FAQs de una de estas formas: (1) **Texto enriquecido** con pares de pregunta (línea corta que termina en '?') y a continuación el párrafo de respuesta; o (2) **Metaobjetos** (lista) con campos **Pregunta/Respuesta** (o Question/Answer). La app detecta el formato y emite **FAQPage** válido si encuentra ≥2 pares Q&A."
