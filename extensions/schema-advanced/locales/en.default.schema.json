@@ -1,9 +1,13 @@
 {
   "name": "Schema Advanced ES/PT",
+
+  "sae_core": { "name": "SAE Core" },
+  "sae_lb":   { "name": "SAE LocalBusiness" },
+
   "settings": {
     "language_mode": {
       "label": "Language",
-      "info": "Choose the output language for the JSON-LD. “Auto” follows the visitor/store locale.",
+      "info": "Choose the output language for the JSON-LD. \"Auto\" follows the visitor/store locale.",
       "options": {
         "auto": "Auto by locale",
         "es": "Spanish (es-ES)",
@@ -83,6 +87,10 @@
       "label": "Emit Collection/FAQ on collection pages",
       "info": "Outputs WebPage/CollectionPage and optional FAQPage if the metafield is present."
     },
+    "emit_breadcrumbs": {
+      "label": "Emit simple Breadcrumbs",
+      "info": "Enables Home → Collection → Product."
+    },
     "faq_handle": {
       "label": "FAQ metafield handle (namespace.key)",
       "info": "Single handle such as custom.faq. Create a Collection metafield: either (1) Rich text with pairs of question (short line ending with '?') followed by answer paragraph; or (2) Metaobjects list with fields Question/Answer (or Pregunta/Respuesta). The app will auto-detect and emit a valid FAQPage if it finds ≥2 Q&A pairs."
@@ -95,10 +103,47 @@
       "label": "Remove theme JSON-LD (beta)",
       "info": "Removes non-app JSON-LD scripts (Product, Organization, WebSite, BreadcrumbList, FAQPage, BlogPosting/Article, AboutPage, ContactPage) injected by the theme to avoid duplicates. Use with caution and test thoroughly."
     }
+  },
+
+  "lb": {
+    "settings": {
+      "lb_enable": { "label": "Enable LocalBusiness", "info": "Emits the physical location’s JSON-LD." },
+      "lb_type":    { "label": "Business type" },
+      "lb_name":    { "label": "Location name", "info": "Empty = shop name." },
+      "lb_logo":    { "label": "Location logo", "info": "Used in logo/image in markup." },
+      "lb_sameas":  { "label": "Social profiles", "info": "URLs separated by comma or spaces." },
+      "lb_phone":   { "label": "Phone" },
+      "lb_email":   { "label": "Email" },
+      "lb_price_range": { "label": "Price range" },
+
+      "lb_address_street": { "label": "Street address" },
+      "lb_address_city":   { "label": "City" },
+      "lb_address_region": { "label": "Region/State" },
+      "lb_address_postal": { "label": "Postal code" },
+      "lb_address_country":{ "label": "Country (ISO-2)" },
+
+      "lb_geo_coords": { "label": "Coords lat,lng", "info": "E.g. 40.4167,-3.7033" },
+      "lb_maps_url":   { "label": "Google Maps URL", "info": "Paste your listing URL." },
+
+      "lb_area_served":     { "label": "Area served", "info": "ISO-2 country codes, comma-separated." },
+      "lb_payment_methods": { "label": "Payment methods", "info": "Free text (Visa, MasterCard…)." },
+      "lb_currencies_accepted": { "label": "Currencies accepted" },
+
+      "lb_opening_mode": {
+        "label": "Opening hours mode",
+        "options": {
+          "weekly": "Weekly",
+          "24_7": "24/7",
+          "closed": "Closed",
+          "manual_json": "Manual (JSON)"
+        }
+      },
+      "lb_hours_json":   { "label": "Hours (manual JSON)", "info": "Array of OpeningHoursSpecification." },
+      "lb_hours_weekdays_open":  { "label": "Open (Mon–Fri)" },
+      "lb_hours_weekdays_close": { "label": "Close (Mon–Fri)" },
+      "lb_hours_sat_open":       { "label": "Open (Sat)" },
+      "lb_hours_sat_close":      { "label": "Close (Sat)" },
+      "lb_hours_sun_open":       { "label": "Open (Sun)", "info": "Leave blank if closed." }
+    }
   }
 }
-
-
-
-
-
