@@ -38,12 +38,12 @@ export async function loader({ request }) {
 }
 
 /* ==========================================================
-   Tarjeta SIN input:
-   - NO hay ping automático ni fetch de respaldo
+   Tarjeta SIN input (solo ping manual)
+   - No ping automático
+   - Sin fetch de respaldo
    - Solo botón “Verificar ahora (ping)”
-   - Muestra rutas candidatas (no dispara acciones al cambiarlas)
    ========================================================== */
-function SchemaStatusCardNoInput({ shop }) {
+function SchemaStatusCardNoInput({ shop, t }) {
   const [paths, setPaths] = useState(["/"]);
   const [activePath, setActivePath] = useState("/");
   const [loading, setLoading] = useState(false);
@@ -64,13 +64,13 @@ function SchemaStatusCardNoInput({ shop }) {
       setLastPingAt(new Date());
       setMethod("ping");
       setLoading(false);
-      toast(d.ok ? "Schema detectado (ping)" : "No detectado (ping)");
+      toast(d.ok ? t.status.toastDetected : t.status.toastNotDetected);
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [t]);
 
-  // Descubre rutas candidatas al montar (no hace ninguna verificación automática)
+  // Descubre rutas candidatas al montar (no dispara verificaciones)
   useEffect(() => {
     (async () => {
       try {
@@ -99,7 +99,7 @@ function SchemaStatusCardNoInput({ shop }) {
 
     const id = (verifyRef.current.id || 0) + 1;
     verifyRef.current = { id, done: false };
-    toast("Verificando en el escaparate…");
+    toast(t.status.toastVerifying);
 
     const url = `https://${shop}${activePath}?sae_ping=1`;
     const win = window.open(url, "_blank"); // sin noopener (necesitamos opener)
@@ -125,25 +125,25 @@ function SchemaStatusCardNoInput({ shop }) {
       if (verifyRef.current.id === id && !verifyRef.current.done) {
         setLoading(false);
         setMethod("ping/timeout");
-        toast("No llegó el ping (timeout). Vuelve a intentar.");
+        toast(t.status.toastTimeout);
       }
     }, 20000);
   }
 
   const badge = (() => {
-    if (loading) return { label: "Comprobando…", dot: "#f59e0b", bg: "#fff7ed", bd: "#f59e0b", tx: "#92400e" };
-    if (detected === true) return { label: "Detectado", dot: "#10b981", bg: "#ecfdf5", bd: "#10b981", tx: "#065f46" };
-    if (detected === false) return { label: "No detectado", dot: "#ef4444", bg: "#fef2f2", bd: "#ef4444", tx: "#991b1b" };
-    return { label: "Sin verificar", dot: "#9ca3af", bg: "#f3f4f6", bd: "#9ca3af", tx: "#374151" };
+    if (loading) return { label: t.status.checking, dot: "#f59e0b", bg: "#fff7ed", bd: "#f59e0b", tx: "#92400e" };
+    if (detected === true) return { label: t.status.detected, dot: "#10b981", bg: "#ecfdf5", bd: "#10b981", tx: "#065f46" };
+    if (detected === false) return { label: t.status.notDetected, dot: "#ef4444", bg: "#fef2f2", bd: "#ef4444", tx: "#991b1b" };
+    return { label: t.status.notChecked, dot: "#9ca3af", bg: "#f3f4f6", bd: "#9ca3af", tx: "#374151" };
   })();
 
   const chipLabel = (p) =>
     p === "/"
-      ? "Home"
-      : p.startsWith("/products/") ? "Producto"
-      : p.startsWith("/collections/") ? "Colección"
-      : p.startsWith("/blogs/") ? "Artículo"
-      : p.startsWith("/pages/") ? "Página"
+      ? t.status.home
+      : p.startsWith("/products/") ? t.status.product
+      : p.startsWith("/collections/") ? t.status.collection
+      : p.startsWith("/blogs/") ? t.status.blog
+      : p.startsWith("/pages/") ? t.status.page
       : p;
 
   return (
@@ -159,7 +159,7 @@ function SchemaStatusCardNoInput({ shop }) {
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Estado del schema</h2>
+        <h2 style={{ margin: 0, fontSize: 18 }}>{t.status.title}</h2>
         <span
           style={{
             display: "inline-flex",
@@ -210,7 +210,7 @@ function SchemaStatusCardNoInput({ shop }) {
       </div>
 
       <div style={{ marginTop: 10, color: "#374151", fontSize: 13 }}>
-        Ruta: <code>{activePath}</code> · Método: <code>{method}</code> · Último visto:{" "}
+        {t.status.route}: <code>{activePath}</code> · {t.status.method}: <code>{method}</code> · {t.status.lastSeen}:{" "}
         {lastPingAt ? lastPingAt.toLocaleString() : "—"}
       </div>
 
@@ -229,13 +229,12 @@ function SchemaStatusCardNoInput({ shop }) {
             cursor: "pointer",
           }}
         >
-          Verificar ahora (ping)
+          {t.status.verifyBtn}
         </button>
       </div>
 
       <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-        Solo ping manual: abre el escaparate con <code>?sae_ping=1</code> y envía un{" "}
-        <code>postMessage</code> al panel cuando detecta exactamente{" "}
+        {t.status.helpA}<code>?sae_ping=1</code>{t.status.helpB}{" "}
         <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code>.
       </p>
     </section>
@@ -271,6 +270,28 @@ const TEXT = {
         <li><strong>ContactPage</strong> y <strong>AboutPage</strong></li>
       </ul>
     `,
+    status: {
+      title: "Estado del schema",
+      checking: "Comprobando…",
+      detected: "Detectado",
+      notDetected: "No detectado",
+      notChecked: "Sin verificar",
+      home: "Home",
+      product: "Producto",
+      collection: "Colección",
+      blog: "Artículo",
+      page: "Página",
+      route: "Ruta",
+      method: "Método",
+      lastSeen: "Último visto",
+      verifyBtn: "Verificar ahora (ping)",
+      helpA: "Solo ping manual: abre el escaparate con ",
+      helpB: " y envía un postMessage al panel cuando detecta exactamente",
+      toastDetected: "Schema detectado (ping)",
+      toastNotDetected: "No detectado (ping)",
+      toastVerifying: "Verificando en el escaparate…",
+      toastTimeout: "No llegó el ping (timeout). Vuelve a intentar.",
+    },
   },
   en: {
     title: "Schema Advanced — Overview",
@@ -300,6 +321,28 @@ const TEXT = {
         <li><strong>ContactPage</strong> and <strong>AboutPage</strong></li>
       </ul>
     `,
+    status: {
+      title: "Schema status",
+      checking: "Checking…",
+      detected: "Detected",
+      notDetected: "Not detected",
+      notChecked: "Not verified",
+      home: "Home",
+      product: "Product",
+      collection: "Collection",
+      blog: "Article",
+      page: "Page",
+      route: "Route",
+      method: "Method",
+      lastSeen: "Last seen",
+      verifyBtn: "Verify now (ping)",
+      helpA: "Manual ping only: opens the storefront with ",
+      helpB: " and sends a postMessage to the panel when it detects exactly",
+      toastDetected: "Schema detected (ping)",
+      toastNotDetected: "Not detected (ping)",
+      toastVerifying: "Verifying on storefront…",
+      toastTimeout: "No ping received (timeout). Try again.",
+    },
   },
   pt: {
     title: "Schema Advanced — Visão geral",
@@ -329,6 +372,28 @@ const TEXT = {
         <li><strong>ContactPage</strong> e <strong>AboutPage</strong></li>
       </ul>
     `,
+    status: {
+      title: "Estado do schema",
+      checking: "Verificando…",
+      detected: "Detectado",
+      notDetected: "Não detectado",
+      notChecked: "Sem verificação",
+      home: "Início",
+      product: "Produto",
+      collection: "Coleção",
+      blog: "Artigo",
+      page: "Página",
+      route: "Rota",
+      method: "Método",
+      lastSeen: "Visto por último",
+      verifyBtn: "Verificar agora (ping)",
+      helpA: "Apenas ping manual: abre a vitrine com ",
+      helpB: " e envia um postMessage para o painel quando detectar exatamente",
+      toastDetected: "Schema detectado (ping)",
+      toastNotDetected: "Não detectado (ping)",
+      toastVerifying: "Verificando na vitrine…",
+      toastTimeout: "Ping não recebido (timeout). Tente novamente.",
+    },
   },
 };
 
@@ -428,8 +493,8 @@ export default function Overview() {
         </div>
       </section>
 
-      {/* Estado del schema (solo ping manual) */}
-      <SchemaStatusCardNoInput shop={shop} />
+      {/* Estado del schema (solo ping manual, con i18n) */}
+      <SchemaStatusCardNoInput shop={shop} t={t} />
 
       {/* Guía rápida */}
       <section
@@ -449,4 +514,5 @@ export default function Overview() {
     </div>
   );
 }
+
 
