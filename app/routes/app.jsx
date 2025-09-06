@@ -2,10 +2,9 @@
 import { Outlet, NavLink, useSearchParams, useLocation, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { json, redirect } from "@remix-run/node";
-import { Provider as AppBridgeProvider } from "@shopify/app-bridge-react";
 import { prisma } from "~/lib/prisma.server";
 
-const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-07";
+const ADMIN_API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
 const LIVE_Q = `query { currentAppInstallation { activeSubscriptions { id name status } } }`;
 
 export async function loader({ request }) {
@@ -18,20 +17,13 @@ export async function loader({ request }) {
 
   // Sin token → si venimos del Admin (hay host), inicia OAuth automáticamente
   if (!rec?.accessToken) {
-    if (host) {
-      const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
-      return redirect(toAuth);
-    }
-    // Fuera del Admin, muestra CTA de reinstalación
+    if (host) return redirect(`/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`);
     return json({ state: "UNINSTALLED_OR_NO_TOKEN", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
   }
 
   // Marcada como desinstalada
   if (rec.subscriptionStatus === "UNINSTALLED") {
-    if (host) {
-      const toAuth = `/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`;
-      return redirect(toAuth);
-    }
+    if (host) return redirect(`/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`);
     return json({ state: "UNINSTALLED", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
   }
 
@@ -58,11 +50,16 @@ export async function loader({ request }) {
         needsBilling = false;
       }
     } catch {
-      // ignora fallo; seguimos con lo persistido
+      /* ignore */
     }
   }
 
-  return json({ state: needsBilling ? "NEEDS_BILLING" : "OK", shop, host, apiKey: process.env.SHOPIFY_API_KEY });
+  return json({
+    state: needsBilling ? "NEEDS_BILLING" : "OK",
+    shop,
+    host,
+    apiKey: process.env.SHOPIFY_API_KEY,
+  });
 }
 
 /** Utilidades **/
@@ -103,14 +100,15 @@ export default function AppLayout() {
   const initial = sp.get("lang") || "es";
   const [lang, setLang] = useState(["es", "en", "pt"].includes(initial) ? initial : "es");
 
-  // Re-embed top-level si estamos fuera del iframe y tenemos host
+  // Re-embed top-level si estamos fuera del iframe y tenemos host (compat v3/v4)
   useEffect(() => {
     if (!apiKey || !host) return;
     if (typeof window === "undefined") return;
     if (window.top === window.self) {
+      // Con v4 ya no necesitas Provider; esto solo fuerza el re-embed si hiciera falta.
       import("@shopify/app-bridge")
         .then(({ default: createApp }) => {
-          createApp({ apiKey, host, forceRedirect: true });
+          try { createApp({ apiKey, host, forceRedirect: true }); } catch {}
         })
         .catch(() => {});
     }
@@ -123,25 +121,10 @@ export default function AppLayout() {
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
 
-    (async () => {
-      try {
-        const { default: createApp } = await import("@shopify/app-bridge");
-        const { Redirect } = await import("@shopify/app-bridge/actions");
-        const app = createApp({ apiKey, host, forceRedirect: true });
-        const redirect = Redirect.create(app);
-        const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${
-          host ? `&host=${encodeURIComponent(host)}` : ""
-        }`;
-        redirect.dispatch(Redirect.Action.REMOTE, url);
-        setTimeout(() => { if (window.top) window.top.location.href = url; }, 1200);
-      } catch {
-        const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${
-          host ? `&host=${encodeURIComponent(host)}` : ""
-        }`;
-        if (window.top) window.top.location.href = url;
-      }
-    })();
-  }, [state, shop, host, apiKey]);
+    // En v4 puedes redirigir top directamente
+    const url = `/api/billing/start?shop=${encodeURIComponent(shop)}${host ? `&host=${encodeURIComponent(host)}` : ""}`;
+    if (window.top) window.top.location.href = url;
+  }, [state, shop, host]);
 
   if (state === "UNINSTALLED" || state === "UNINSTALLED_OR_NO_TOKEN") {
     const reinstall = `/auth?shop=${encodeURIComponent(shop || "")}`;
@@ -194,124 +177,108 @@ export default function AppLayout() {
     }
   };
 
-  // 👇 Monta App Bridge Provider SOLO en cliente para evitar “shopify global is not defined”
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => setIsClient(true), []);
-  if (!isClient) return null;
-
-  if (!apiKey || !host) {
-    return (
-      <div style={{ padding: 16 }}>
-        Falta <code>host</code> o <code>apiKey</code>. Abre la app desde el Admin de Shopify para inicializar App Bridge.
-      </div>
-    );
-  }
-
   return (
-    <AppBridgeProvider config={{ apiKey, host, forceRedirect: true }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "240px 1fr",
-          gap: 16,
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: 12,
-        }}
-      >
-        {/* Sidebar tipo Shopify Admin */}
-        <aside style={{ borderRight: "1px solid #e5e7eb", paddingRight: 12 }}>
-          <h2 style={{ fontSize: 16, margin: "6px 0 10px" }}>Schema Advanced</h2>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "240px 1fr",
+        gap: 16,
+        maxWidth: 1200,
+        margin: "0 auto",
+        padding: 12,
+      }}
+    >
+      {/* Sidebar */}
+      <aside style={{ borderRight: "1px solid #e5e7eb", paddingRight: 12 }}>
+        <h2 style={{ fontSize: 16, margin: "6px 0 10px" }}>Schema Advanced</h2>
 
-          <label style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
-            {lang === "en" ? "Language" : "Idioma"}
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value)}
-              style={{
-                display: "block",
-                marginTop: 4,
-                padding: "6px 8px",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                width: "100%",
-                background: "#fff",
-              }}
-            >
-              <option value="es">Español</option>
-              <option value="en">English</option>
-              <option value="pt">Português</option>
-            </select>
-          </label>
-
-          <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
-            {/* Overview = índice de /app */}
-            <NavLink end to={toWithSearch(".")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("products")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Produtos" : lang === "en" ? "Products" : "Productos"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("collections")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Coleções" : lang === "en" ? "Collections" : "Colecciones"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("pages")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("localbusiness")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Negócio local" : lang === "en" ? "Local business" : "Negocio local"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("blog")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("global")} style={({ isActive }) => linkStyle(isActive)}>
-              Global
-            </NavLink>
-
-            <NavLink to={toWithSearch("suppressor")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Supressor JSON-LD" : lang === "en" ? "JSON-LD Suppressor" : "Supresor JSON-LD"}
-            </NavLink>
-
-            <NavLink to={toWithSearch("settings")} style={({ isActive }) => linkStyle(isActive)}>
-              {lang === "pt" ? "Configurações" : lang === "en" ? "Settings" : "Ajustes"}
-            </NavLink>
-          </nav>
-
-          <button
-            onClick={openThemeEditor}
+        <label style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
+          {lang === "en" ? "Language" : "Idioma"}
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
             style={{
-              marginTop: 12,
-              padding: "8px 10px",
-              border: "1px solid #dfe3e8",
-              borderRadius: 8,
-              background: "#111827",
-              color: "#fff",
-              fontWeight: 700,
+              display: "block",
+              marginTop: 4,
+              padding: "6px 8px",
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
               width: "100%",
+              background: "#fff",
             }}
           >
-            {lang === "pt" ? "Abrir editor do tema" : lang === "en" ? "Open theme editor" : "Abrir editor de temas"}
-          </button>
+            <option value="es">Español</option>
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+          </select>
+        </label>
 
-          <div style={{ marginTop: 14, fontSize: 12 }}>
-            <div><a href={`/support${search}`} target="_top" rel="noreferrer">Support</a></div>
-            <div><a href={`/terms${search}`} target="_top" rel="noreferrer">Terms</a></div>
-            <div><a href={`/privacy${search}`} target="_top" rel="noreferrer">Privacy</a></div>
-          </div>
-        </aside>
+        <nav style={{ display: "grid", gap: 6, marginTop: 10 }}>
+          <NavLink end to={toWithSearch(".")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Visão geral" : lang === "en" ? "Overview" : "Overview"}
+          </NavLink>
 
-        {/* Contenido */}
-        <main>
-          {/* El Outlet y TODO lo que use useAppBridge vive dentro del Provider */}
-          <Outlet context={{ lang }} />
-        </main>
-      </div>
-    </AppBridgeProvider>
+          <NavLink to={toWithSearch("products")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Produtos" : lang === "en" ? "Products" : "Productos"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("collections")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Coleções" : lang === "en" ? "Collections" : "Colecciones"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("pages")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Páginas" : lang === "en" ? "Pages" : "Páginas"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("localbusiness")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Negócio local" : lang === "en" ? "Local business" : "Negocio local"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("blog")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Blog / Artigos" : lang === "en" ? "Blog / Articles" : "Blog / Artículos"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("global")} style={({ isActive }) => linkStyle(isActive)}>
+            Global
+          </NavLink>
+
+          <NavLink to={toWithSearch("suppressor")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Supressor JSON-LD" : lang === "en" ? "JSON-LD Suppressor" : "Supresor JSON-LD"}
+          </NavLink>
+
+          <NavLink to={toWithSearch("settings")} style={({ isActive }) => linkStyle(isActive)}>
+            {lang === "pt" ? "Configurações" : lang === "en" ? "Settings" : "Ajustes"}
+          </NavLink>
+        </nav>
+
+        <button
+          onClick={openThemeEditor}
+          style={{
+            marginTop: 12,
+            padding: "8px 10px",
+            border: "1px solid #dfe3e8",
+            borderRadius: 8,
+            background: "#111827",
+            color: "#fff",
+            fontWeight: 700,
+            width: "100%",
+          }}
+        >
+          {lang === "pt" ? "Abrir editor do tema" : lang === "en" ? "Open theme editor" : "Abrir editor de temas"}
+        </button>
+
+        <div style={{ marginTop: 14, fontSize: 12 }}>
+          <div><a href={`/support${search}`} target="_top" rel="noreferrer">Support</a></div>
+          <div><a href={`/terms${search}`} target="_top" rel="noreferrer">Terms</a></div>
+          <div><a href={`/privacy${search}`} target="_top" rel="noreferrer">Privacy</a></div>
+        </div>
+      </aside>
+
+      {/* Contenido */}
+      <main>
+        <Outlet context={{ lang }} />
+      </main>
+    </div>
   );
 }
+

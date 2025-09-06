@@ -8,25 +8,40 @@ import {
   LiveReload,
   isRouteErrorResponse,
   useRouteError,
+  useLoaderData,
 } from "@remix-run/react";
+import { json } from "@remix-run/node";
 
-export const meta = () => [
-  { charSet: "utf-8" },
-  { title: "Schema Advanced" },
-  { name: "viewport", content: "width=device-width, initial-scale=1" },
-];
-
-export function links() {
-  return []; // añade CSS global si tienes
+// ⬇️ Pasamos la API key al root (no es secreta)
+export async function loader() {
+  return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
 }
+
+// ⬇️ Usa la API key del loader para emitir la meta de App Bridge v4
+export const meta = ({ data }) => {
+  const tags = [
+    { charSet: "utf-8" },
+    { title: "Schema Advanced" },
+    { name: "viewport", content: "width=device-width, initial-scale=1" },
+  ];
+  if (data?.apiKey) {
+    tags.push({ name: "shopify-api-key", content: data.apiKey });
+  }
+  return tags;
+};
 
 // Patrón recomendado Remix v2: Layout + App
 export function Layout({ children }) {
+  const { apiKey } = useLoaderData(); // <- para decidir si renderizamos el script
   return (
     <html lang="en">
       <head>
+        {/* App Bridge v4: meta + script (el <Meta /> inyecta la meta arriba) */}
         <Meta />
         <Links />
+        {apiKey ? (
+          <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+        ) : null}
       </head>
       <body>
         {children}
@@ -60,4 +75,5 @@ export function ErrorBoundary() {
     </div>
   );
 }
+
 
