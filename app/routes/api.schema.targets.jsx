@@ -2,15 +2,19 @@
 import { json } from "@remix-run/node";
 import { prisma } from "~/lib/prisma.server";
 
-const API = (shop, token, q) =>
-  fetch(`https://${shop}/admin/api/2024-10/graphql.json`, {
+const API_VERSION = process.env.SHOPIFY_API_VERSION || "2024-10";
+
+async function shopifyGraphQL(shop, token, q) {
+  const r = await fetch(`https://${shop}/admin/api/${API_VERSION}/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Shopify-Access-Token": token,
     },
     body: JSON.stringify({ query: q }),
-  }).then(r => r.json());
+  });
+  return r.json();
+}
 
 export async function loader({ request }) {
   const url = new URL(request.url);
@@ -21,7 +25,6 @@ export async function loader({ request }) {
   const token = rec?.accessToken;
   if (!token) return json({ ok: true, paths: ["/"] });
 
-  // Queries (rápidas, 1 ítem por tipo)
   const q = `
   query Targets {
     products(first:1, query:"status:ACTIVE AND published_status:PUBLISHED", sortKey:UPDATED_AT, reverse:true) {
@@ -39,7 +42,7 @@ export async function loader({ request }) {
   }`;
 
   try {
-    const data = await API(shop, token, q);
+    const data = await shopifyGraphQL(shop, token, q);
     const p = data?.data?.products?.edges?.[0]?.node?.handle;
     const c = data?.data?.collections?.edges?.[0]?.node?.handle;
     const pg = data?.data?.pages?.edges?.[0]?.node?.handle;
@@ -53,7 +56,8 @@ export async function loader({ request }) {
     if (b?.handle && a) paths.push(`/blogs/${b.handle}/${a}`);
 
     return json({ ok: true, paths: Array.from(new Set(paths)) });
-  } catch {
-    return json({ ok: true, paths: ["/"] });
+  } catch (e) {
+    return json({ ok: true, paths: ["/"], error: String(e) });
   }
 }
+

@@ -47,7 +47,7 @@ function SchemaStatusCardNoInput({ shop }) {
   const [loading, setLoading] = useState(false);
   const [detected, setDetected] = useState(null); // null | boolean
   const [lastPingAt, setLastPingAt] = useState(null);
-  const [method, setMethod] = useState("db");
+  const [method, setMethod] = useState("fetch");
 
   function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
 
@@ -76,10 +76,12 @@ function SchemaStatusCardNoInput({ shop }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shop]);
 
-  async function loadStatus(mode = "db", path = activePath) {
+  async function loadStatus(mode = "fetch", path = activePath) {
     setLoading(true);
     try {
-      const r = await fetch(`/api/schema/status?shop=${encodeURIComponent(shop)}&mode=${mode}&path=${encodeURIComponent(path)}`);
+      const r = await fetch(
+        `/api/schema/status?shop=${encodeURIComponent(shop)}&mode=${mode}&path=${encodeURIComponent(path)}`
+      );
       const j = await r.json();
       setDetected(!!j.detected);
       setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
@@ -90,8 +92,8 @@ function SchemaStatusCardNoInput({ shop }) {
   }
 
   async function checkPublished(path = activePath) {
-    await loadStatus("fetch", path);
-    toast("Comprobado (tema publicado)");
+    await loadStatus("fetch", path); // lee HTML publicado
+    toast("Comprobado (publicado)");
   }
 
   function verifyNow() {
@@ -103,7 +105,7 @@ function SchemaStatusCardNoInput({ shop }) {
     const a = document.createElement("a");
     a.href = url; a.target = "_blank"; a.rel = "noopener";
     document.body.appendChild(a); a.click(); a.remove();
-    // Tras el beacon del snippet, lee último ping
+    // Tras el render del storefront, vuelve a comprobar
     setTimeout(() => loadStatus("db", activePath), 4000);
   }
 
@@ -217,8 +219,7 @@ function SchemaStatusCardNoInput({ shop }) {
       </div>
 
       <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-        Ping: abre la ruta en el escaparate con <code>?sae_ping=1</code> y tu snippet envía el estado real.
-        Fetch: inspecciona el HTML del tema publicado; puede fallar con password/redirects.
+        Busco estrictamente <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code> en el HTML publicado.
       </p>
     </section>
   );
@@ -319,7 +320,7 @@ const TEXT = {
     badgeInactive: "Sem assinatura",
     verifyTitle: "Verificar injeção do schema",
     verifyHelp:
-      'Abre a vitrine com ?sae_ping=1 e verifica exatamente <script type="application/ld+json" data-sae="1">. Se o snippet de ping estiver instalado, verá o estado aqui em alguns segundos.',
+      'Abre a vitrine com ?sae_ping=1 y verifica exactamente <script type="application/ld+json" data-sae="1">.',
   },
 };
 
@@ -368,7 +369,7 @@ export default function Overview() {
       <section
         style={{
           background: "#fff",
-          border: "1px solid #e5e7eb",
+          border: "1px solid "#e5e7eb",
           borderRadius: 10,
           padding: 16,
           marginTop: 12,
@@ -383,7 +384,7 @@ export default function Overview() {
             style={{
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid #111827",
+              border: "1px solid "#111827",
               background: "#111827",
               color: "#fff",
               cursor: "pointer",
@@ -419,7 +420,7 @@ export default function Overview() {
       <section
         style={{
           background: "#fff",
-          border: "1px solid #e5e7eb",
+          border: "1px solid "#e5e7eb",
           borderRadius: 10,
           padding: 16,
           marginTop: 12,
@@ -431,3 +432,4 @@ export default function Overview() {
     </div>
   );
 }
+
