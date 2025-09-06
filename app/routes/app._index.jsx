@@ -1,8 +1,10 @@
 // app/routes/app._index.jsx
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
+import { useMemo, useState } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect, Toast } from "@shopify/app-bridge/actions";
 import { prisma } from "~/lib/prisma.server";
-import SchemaVerifyButton from "~/components/SchemaVerifyButton";
 
 /** Deriva shop desde host (base64url) si falta ?shop= */
 function decodeShopFromHost(hostB64url) {
@@ -35,6 +37,72 @@ export async function loader({ request }) {
     subscriptionStatus: rec?.subscriptionStatus ?? null,
     planName: rec?.planName ?? null,
   });
+}
+
+/* ===========================================
+   Botón inline para verificar <script ld+json data-sae="1">
+   Abre https://{shop}{path}?sae_ping=1 y espera el beacon.
+   =========================================== */
+function SchemaVerifyButtonInline({ shop, defaultPath = "/" }) {
+  const app = useAppBridge();
+  const redirect = useMemo(() => (app ? Redirect.create(app) : null), [app]);
+  const [path, setPath] = useState(defaultPath);
+
+  async function refreshStatus() {
+    try {
+      const r = await fetch(`/api/schema/status?shop=${encodeURIComponent(shop)}`);
+      const j = await r.json();
+      const ok = j?.detected === true;
+      if (app) {
+        Toast.create(app, { message: ok ? "Schema detectado" : "No detectado", duration: 2500 })
+          .dispatch(Toast.Action.SHOW);
+      }
+    } catch {
+      // silencioso
+    }
+  }
+
+  function verifyNow() {
+    const url = `https://${shop}${path}?sae_ping=1`;
+    if (redirect) {
+      redirect.dispatch(Redirect.Action.REMOTE, url);
+    } else if (typeof window !== "undefined") {
+      // Fallback si App Bridge aún no está listo (SSR)
+      window.top.location.href = url;
+    }
+    setTimeout(refreshStatus, 3500);
+    if (app) {
+      Toast.create(app, { message: "Verificando en el escaparate…", duration: 2000 })
+        .dispatch(Toast.Action.SHOW);
+    }
+  }
+
+  return (
+    <div style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 10 }}>
+      <div style={{ marginBottom: 8, color: "#374151", fontSize: 14 }}>
+        Ruta a verificar:{" "}
+        <input
+          style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "6px 8px", width: 260 }}
+          value={path}
+          onChange={(e) => setPath(e.target.value || "/")}
+        />
+      </div>
+      <button
+        onClick={verifyNow}
+        type="button"
+        style={{
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: "1px solid #111827",
+          background: "#111827",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        Verificar schema (ping)
+      </button>
+    </div>
+  );
 }
 
 const TEXT = {
@@ -152,7 +220,6 @@ export default function Overview() {
   const { lang } = useOutletContext() || { lang: "es" };
   const t = TEXT[lang] || TEXT.es;
 
-  // ⬇️ Ahora exponemos también `shop` para pasárselo al botón si lo necesita
   const { subscriptionStatus, planName, shop } = useLoaderData();
   const isActive = subscriptionStatus === "ACTIVE";
 
@@ -226,7 +293,7 @@ export default function Overview() {
         </div>
       </section>
 
-      {/* --- añadido: verificador de inyección --- */}
+      {/* Verificador de inyección */}
       <section
         style={{
           background: "#fff",
@@ -236,12 +303,12 @@ export default function Overview() {
           marginTop: 12,
         }}
       >
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.verifyTitle}</h2>
-        <p style={{ marginTop: 0, color: "#374151" }}>{t.verifyHelp}</p>
-
-        {/* Usa tu botón (obtiene ?shop del QS). Pasamos también shop por si tu versión lo requiere. */}
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.es ? t.es?.verifyTitle : t.verifyTitle}</h2>
+        <p style={{ marginTop: 0, color: "#374151" }}>
+          {t.verifyHelp}
+        </p>
         <div style={{ marginTop: 8 }}>
-          <SchemaVerifyButton defaultPath="/" shop={shop} />
+          <SchemaVerifyButtonInline shop={shop} defaultPath="/" />
         </div>
       </section>
 
