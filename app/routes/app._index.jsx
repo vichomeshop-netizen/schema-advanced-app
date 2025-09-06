@@ -1,7 +1,7 @@
 // app/routes/app._index.jsx
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { prisma } from "~/lib/prisma.server";
 
 /** Deriva shop desde host (base64url) si falta ?shop= */
@@ -39,9 +39,9 @@ export async function loader({ request }) {
 
 /* ==========================================================
    Tarjeta SIN input:
-   - Busca EXACTAMENTE <script type="application/ld+json" data-sae="1"> en HTML publicado (fetch)
-   - NO hace ping automático
-   - Al pulsar "Verificar ahora", abre ?sae_ping=1 y espera postMessage (sin fetch de respaldo)
+   - NO hay ping automático ni fetch de respaldo
+   - Solo botón “Verificar ahora (ping)”
+   - Muestra rutas candidatas (no dispara acciones al cambiarlas)
    ========================================================== */
 function SchemaStatusCardNoInput({ shop }) {
   const [paths, setPaths] = useState(["/"]);
@@ -49,12 +49,12 @@ function SchemaStatusCardNoInput({ shop }) {
   const [loading, setLoading] = useState(false);
   const [detected, setDetected] = useState(null); // null | boolean
   const [lastPingAt, setLastPingAt] = useState(null);
-  const [method, setMethod] = useState("fetch");
+  const [method, setMethod] = useState("idle");
   const verifyRef = useRef({ id: 0, done: false });
 
   function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
 
-  // 🔔 Listener de ping (vía postMessage desde el escaparate)
+  // Listener de ping (postMessage desde el escaparate)
   useEffect(() => {
     function onMessage(ev) {
       const d = ev?.data;
@@ -70,7 +70,7 @@ function SchemaStatusCardNoInput({ shop }) {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // Descubre rutas candidatas y hace 1ª comprobación del tema publicado (fetch)
+  // Descubre rutas candidatas al montar (no hace ninguna verificación automática)
   useEffect(() => {
     (async () => {
       try {
@@ -85,51 +85,14 @@ function SchemaStatusCardNoInput({ shop }) {
           ps.find((p) => p.startsWith("/pages/")) ||
           "/";
         setActivePath(pick);
-        await checkPublished(pick);
       } catch {
         setPaths(["/"]);
         setActivePath("/");
-        await checkPublished("/");
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shop]);
 
-  async function loadStatus(mode = "fetch", path = activePath) {
-    // Si ya llegó ping en esta sesión, no sobreescribas con fetch
-    if (verifyRef.current.done && mode !== "ping") return;
-    setLoading(true);
-    try {
-      const r = await fetch(
-        `/api/schema/status?shop=${encodeURIComponent(shop)}&mode=${mode}&path=${encodeURIComponent(path)}`
-      );
-      const j = await r.json();
-
-      // Heurística password/redirects (si tu API lo devuelve)
-      if (j?.blocked === "password" || j?.htmlIncludesPassword) {
-        setDetected(null);
-        setMethod("fetch/password");
-        setLoading(false);
-        toast("La tienda parece protegida con contraseña o redirigida. Usa preview o quita la password.");
-        return;
-      }
-
-      if (!verifyRef.current.done) {
-        setDetected(!!j.detected);
-        setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
-        setMethod(j.method || mode);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function checkPublished(path = activePath) {
-    await loadStatus("fetch", path); // lee HTML publicado
-    toast("Comprobado (publicado)");
-  }
-
-  // ▶️ Solo al pulsar. Sin ping automático. Sin fetch de respaldo.
+  // Solo al pulsar. Sin ping automático. Sin fetch de respaldo.
   function verifyNow() {
     setLoading(true);
     setDetected(null);
@@ -157,7 +120,7 @@ function SchemaStatusCardNoInput({ shop }) {
       setTimeout(() => { try { iframe.remove(); } catch {} }, 25000);
     }
 
-    // SIN fetch de respaldo: si no llega ping, terminamos el loading a los 20s
+    // Si no llega ping, cancelar loading tras 20s
     setTimeout(() => {
       if (verifyRef.current.id === id && !verifyRef.current.done) {
         setLoading(false);
@@ -167,12 +130,12 @@ function SchemaStatusCardNoInput({ shop }) {
     }, 20000);
   }
 
-  const badge = useMemo(() => {
+  const badge = (() => {
     if (loading) return { label: "Comprobando…", dot: "#f59e0b", bg: "#fff7ed", bd: "#f59e0b", tx: "#92400e" };
     if (detected === true) return { label: "Detectado", dot: "#10b981", bg: "#ecfdf5", bd: "#10b981", tx: "#065f46" };
     if (detected === false) return { label: "No detectado", dot: "#ef4444", bg: "#fef2f2", bd: "#ef4444", tx: "#991b1b" };
     return { label: "Sin verificar", dot: "#9ca3af", bg: "#f3f4f6", bd: "#9ca3af", tx: "#374151" };
-  }, [loading, detected]);
+  })();
 
   const chipLabel = (p) =>
     p === "/"
@@ -218,14 +181,14 @@ function SchemaStatusCardNoInput({ shop }) {
         </span>
       </div>
 
-      {/* Rutas candidatas (sin escribir nada) */}
+      {/* Rutas candidatas (no disparan verificación automática) */}
       <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
         {paths.map((p) => {
           const isActive = p === activePath;
           return (
             <button
               key={p}
-              onClick={() => { setActivePath(p); checkPublished(p); }}
+              onClick={() => { setActivePath(p); }}
               type="button"
               title={p}
               style={{
@@ -251,7 +214,7 @@ function SchemaStatusCardNoInput({ shop }) {
         {lastPingAt ? lastPingAt.toLocaleString() : "—"}
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ marginTop: 12 }}>
         <button
           onClick={verifyNow}
           type="button"
@@ -268,28 +231,11 @@ function SchemaStatusCardNoInput({ shop }) {
         >
           Verificar ahora (ping)
         </button>
-
-        <button
-          onClick={() => checkPublished()}
-          type="button"
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            borderWidth: 1,
-            borderStyle: "solid",
-            borderColor: "#e5e7eb",
-            background: "#fff",
-            color: "#111827",
-            cursor: "pointer",
-          }}
-        >
-          Recomprobar publicado (fetch)
-        </button>
       </div>
 
       <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-        Ping: abre el escaparate con <code>?sae_ping=1</code> y envía un <code>postMessage</code> al panel.
-        Fetch: inspecciona el HTML del tema publicado para buscar{" "}
+        Solo ping manual: abre el escaparate con <code>?sae_ping=1</code> y envía un{" "}
+        <code>postMessage</code> al panel cuando detecta exactamente{" "}
         <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code>.
       </p>
     </section>
@@ -310,6 +256,9 @@ const TEXT = {
       </ol>
       <p>Si el tema ya emite JSON-LD, activa el <em>supresor</em> para evitar duplicados.</p>
     `,
+    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
+    badgeActive: (planName) => `Plan activo${planName ? ` — ${planName}` : ""}`,
+    badgeInactive: "Sin suscripción",
     guideTitle: "Guía rápida",
     guideHtml: `
       <ul>
@@ -322,9 +271,6 @@ const TEXT = {
         <li><strong>ContactPage</strong> y <strong>AboutPage</strong></li>
       </ul>
     `,
-    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
-    badgeActive: (planName) => `Plan activo${planName ? ` — ${planName}` : ""}`,
-    badgeInactive: "Sin suscripción",
   },
   en: {
     title: "Schema Advanced — Overview",
@@ -339,6 +285,9 @@ const TEXT = {
       </ol>
       <p>If your theme already emits JSON-LD, enable the <em>suppressor</em> to avoid duplicates.</p>
     `,
+    ctas: { openEditor: "Open Theme Editor", openRRT: "Open Rich Results Test" },
+    badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
+    badgeInactive: "No subscription",
     guideTitle: "Quick guide",
     guideHtml: `
       <ul>
@@ -351,9 +300,6 @@ const TEXT = {
         <li><strong>ContactPage</strong> and <strong>AboutPage</strong></li>
       </ul>
     `,
-    ctas: { openEditor: "Open Rich Results Test", openRRT: "Open Rich Results Test" },
-    badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
-    badgeInactive: "No subscription",
   },
   pt: {
     title: "Schema Advanced — Visão geral",
@@ -368,6 +314,9 @@ const TEXT = {
       </ol>
       <p>Se o tema já emite JSON-LD, ative o <em>supressor</em> para evitar duplicados.</p>
     `,
+    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
+    badgeActive: (planName) => `Plano ativo${planName ? ` — ${planName}` : ""}`,
+    badgeInactive: "Sem assinatura",
     guideTitle: "Guia rápido",
     guideHtml: `
       <ul>
@@ -380,13 +329,10 @@ const TEXT = {
         <li><strong>ContactPage</strong> e <strong>AboutPage</strong></li>
       </ul>
     `,
-    ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
-    badgeActive: (planName) => `Plano ativo${planName ? ` — ${planName}` : ""}`,
-    badgeInactive: "Sem assinatura",
   },
 };
 
-// Helper: abrir editor de temas
+// Helper: abrir editor de temas (mismo patrón que usas en el layout)
 function openThemeEditorFromQS() {
   if (typeof window === "undefined") return;
   const qs = new URLSearchParams(window.location.search);
@@ -482,7 +428,7 @@ export default function Overview() {
         </div>
       </section>
 
-      {/* Estado del schema (sin input) */}
+      {/* Estado del schema (solo ping manual) */}
       <SchemaStatusCardNoInput shop={shop} />
 
       {/* Guía rápida */}
@@ -503,3 +449,4 @@ export default function Overview() {
     </div>
   );
 }
+
