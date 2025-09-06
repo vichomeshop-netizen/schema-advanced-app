@@ -1,9 +1,7 @@
 // app/routes/app._index.jsx
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
-import { useMemo, useState } from "react";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect, Toast } from "@shopify/app-bridge/actions";
+import { useEffect, useMemo, useState } from "react";
 import { prisma } from "~/lib/prisma.server";
 
 /** Deriva shop desde host (base64url) si falta ?shop= */
@@ -39,69 +37,190 @@ export async function loader({ request }) {
   });
 }
 
-/* ===========================================
-   Botón inline para verificar <script ld+json data-sae="1">
-   Abre https://{shop}{path}?sae_ping=1 y espera el beacon.
-   =========================================== */
-function SchemaVerifyButtonInline({ shop, defaultPath = "/" }) {
-  const app = useAppBridge();
-  const redirect = useMemo(() => (app ? Redirect.create(app) : null), [app]);
-  const [path, setPath] = useState(defaultPath);
+/* ==========================================================
+   Tarjeta SIN input: detecta rutas y muestra estado automáticamente
+   Busca exactamente <script type="application/ld+json" data-sae="1">
+   ========================================================== */
+function SchemaStatusCardNoInput({ shop }) {
+  const [paths, setPaths] = useState(["/"]);
+  const [activePath, setActivePath] = useState("/");
+  const [loading, setLoading] = useState(false);
+  const [detected, setDetected] = useState(null); // null | boolean
+  const [lastPingAt, setLastPingAt] = useState(null);
+  const [method, setMethod] = useState("db");
 
-  async function refreshStatus() {
-    try {
-      const r = await fetch(`/api/schema/status?shop=${encodeURIComponent(shop)}`);
-      const j = await r.json();
-      const ok = j?.detected === true;
-      if (app) {
-        Toast.create(app, { message: ok ? "Schema detectado" : "No detectado", duration: 2500 })
-          .dispatch(Toast.Action.SHOW);
+  function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
+
+  // Descubre rutas candidatas al montar y hace 1ª comprobación (publicado)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`/api/schema/targets?shop=${encodeURIComponent(shop)}`);
+        const j = await r.json();
+        const ps = Array.isArray(j.paths) && j.paths.length ? j.paths : ["/"];
+        setPaths(ps);
+        const pick =
+          ps.find(p => p.startsWith("/products/")) ||
+          ps.find(p => p.startsWith("/collections/")) ||
+          ps.find(p => p.startsWith("/blogs/")) ||
+          ps.find(p => p.startsWith("/pages/")) ||
+          "/";
+        setActivePath(pick);
+        await checkPublished(pick);
+      } catch {
+        setPaths(["/"]);
+        setActivePath("/");
+        await checkPublished("/");
       }
-    } catch {
-      // silencioso
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop]);
+
+  async function loadStatus(mode = "db", path = activePath) {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/schema/status?shop=${encodeURIComponent(shop)}&mode=${mode}&path=${encodeURIComponent(path)}`);
+      const j = await r.json();
+      setDetected(!!j.detected);
+      setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
+      setMethod(j.method || mode);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  async function checkPublished(path = activePath) {
+    await loadStatus("fetch", path);
+    toast("Comprobado (tema publicado)");
   }
 
   function verifyNow() {
-    const url = `https://${shop}${path}?sae_ping=1`;
-    if (redirect) {
-      redirect.dispatch(Redirect.Action.REMOTE, url);
-    } else if (typeof window !== "undefined") {
-      // Fallback si App Bridge aún no está listo (SSR)
-      window.top.location.href = url;
-    }
-    setTimeout(refreshStatus, 3500);
-    if (app) {
-      Toast.create(app, { message: "Verificando en el escaparate…", duration: 2000 })
-        .dispatch(Toast.Action.SHOW);
-    }
+    setLoading(true);
+    setDetected(null);
+    toast("Verificando en el escaparate…");
+    // Abre en nueva pestaña para no sacar al merchant del panel
+    const url = `https://${shop}${activePath}?sae_ping=1`;
+    const a = document.createElement("a");
+    a.href = url; a.target = "_blank"; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+    // Tras el beacon del snippet, lee último ping
+    setTimeout(() => loadStatus("db", activePath), 4000);
   }
 
+  const badge = useMemo(() => {
+    if (loading) return { label: "Comprobando…", dot: "#f59e0b", bg: "#fff7ed", bd: "#f59e0b", tx: "#92400e" };
+    if (detected === true) return { label: "Detectado", dot: "#10b981", bg: "#ecfdf5", bd: "#10b981", tx: "#065f46" };
+    if (detected === false) return { label: "No detectado", dot: "#ef4444", bg: "#fef2f2", bd: "#ef4444", tx: "#991b1b" };
+    return { label: "Sin verificar", dot: "#9ca3af", bg: "#f3f4f6", bd: "#9ca3af", tx: "#374151" };
+  }, [loading, detected]);
+
+  const chipLabel = (p) =>
+    p === "/"
+      ? "Home"
+      : p.startsWith("/products/") ? "Producto"
+      : p.startsWith("/collections/") ? "Colección"
+      : p.startsWith("/blogs/") ? "Artículo"
+      : p.startsWith("/pages/") ? "Página"
+      : p;
+
   return (
-    <div style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 10 }}>
-      <div style={{ marginBottom: 8, color: "#374151", fontSize: 14 }}>
-        Ruta a verificar:{" "}
-        <input
-          style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "6px 8px", width: 260 }}
-          value={path}
-          onChange={(e) => setPath(e.target.value || "/")}
-        />
+    <section
+      style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: 16,
+        marginTop: 12,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Estado del schema</h2>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "4px 8px",
+            borderRadius: 999,
+            border: `1px solid ${badge.bd}`,
+            background: badge.bg,
+            color: badge.tx,
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: badge.dot }} />
+          {badge.label}
+        </span>
       </div>
-      <button
-        onClick={verifyNow}
-        type="button"
-        style={{
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "1px solid #111827",
-          background: "#111827",
-          color: "#fff",
-          cursor: "pointer",
-        }}
-      >
-        Verificar schema (ping)
-      </button>
-    </div>
+
+      {/* Rutas candidatas (sin escribir nada) */}
+      <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {paths.map((p) => {
+          const isActive = p === activePath;
+          return (
+            <button
+              key={p}
+              onClick={() => { setActivePath(p); checkPublished(p); }}
+              type="button"
+              title={p}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 999,
+                border: `1px solid ${isActive ? "#111827" : "#d1d5db"}`,
+                background: isActive ? "#111827" : "#fff",
+                color: isActive ? "#fff" : "#111827",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              {chipLabel(p)}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 10, color: "#374151", fontSize: 13 }}>
+        Ruta: <code>{activePath}</code> · Método: <code>{method}</code> · Último visto: {lastPingAt ? lastPingAt.toLocaleString() : "—"}
+      </div>
+
+      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button
+          onClick={verifyNow}
+          type="button"
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #111827",
+            background: "#111827",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Verificar ahora (ping)
+        </button>
+
+        <button
+          onClick={() => checkPublished()}
+          type="button"
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+            color: "#111827",
+            cursor: "pointer",
+          }}
+        >
+          Recomprobar publicado (fetch)
+        </button>
+      </div>
+
+      <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+        Ping: abre la ruta en el escaparate con <code>?sae_ping=1</code> y tu snippet envía el estado real.
+        Fetch: inspecciona el HTML del tema publicado; puede fallar con password/redirects.
+      </p>
+    </section>
   );
 }
 
@@ -136,7 +255,7 @@ const TEXT = {
     badgeInactive: "Sin suscripción",
     verifyTitle: "Verificar inyección del schema",
     verifyHelp:
-      "Abre el escaparate con ?sae_ping=1 y comprueba si existe exactamente <script type=\"application/ld+json\" data-sae=\"1\">. Si el snippet de ping está en tu tema, verás el estado aquí tras unos segundos.",
+      'Abre el escaparate con ?sae_ping=1 y comprueba si existe exactamente <script type="application/ld+json" data-sae="1">. Si el snippet de ping está en tu tema, verás el estado aquí tras unos segundos.',
   },
   en: {
     title: "Schema Advanced — Overview",
@@ -168,7 +287,7 @@ const TEXT = {
     badgeInactive: "No subscription",
     verifyTitle: "Verify schema injection",
     verifyHelp:
-      "Opens the storefront with ?sae_ping=1 and checks for exactly <script type=\"application/ld+json\" data-sae=\"1\">. If the ping snippet is installed, you’ll see status here in a few seconds.",
+      'Opens the storefront with ?sae_ping=1 and checks for exactly <script type="application/ld+json" data-sae="1">. If the ping snippet is installed, you’ll see status here in a few seconds.',
   },
   pt: {
     title: "Schema Advanced — Visão geral",
@@ -200,7 +319,7 @@ const TEXT = {
     badgeInactive: "Sem assinatura",
     verifyTitle: "Verificar injeção do schema",
     verifyHelp:
-      "Abre a vitrine com ?sae_ping=1 e verifica exatamente <script type=\"application/ld+json\" data-sae=\"1\">. Se o snippet de ping estiver instalado, verá o estado aqui em alguns segundos.",
+      'Abre a vitrine com ?sae_ping=1 e verifica exatamente <script type="application/ld+json" data-sae="1">. Se o snippet de ping estiver instalado, verá o estado aqui em alguns segundos.',
   },
 };
 
@@ -293,24 +412,8 @@ export default function Overview() {
         </div>
       </section>
 
-      {/* Verificador de inyección */}
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 10,
-          padding: 16,
-          marginTop: 12,
-        }}
-      >
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.es ? t.es?.verifyTitle : t.verifyTitle}</h2>
-        <p style={{ marginTop: 0, color: "#374151" }}>
-          {t.verifyHelp}
-        </p>
-        <div style={{ marginTop: 8 }}>
-          <SchemaVerifyButtonInline shop={shop} defaultPath="/" />
-        </div>
-      </section>
+      {/* Estado del schema (sin input) */}
+      <SchemaStatusCardNoInput shop={shop} />
 
       {/* Guía rápida */}
       <section
@@ -328,4 +431,3 @@ export default function Overview() {
     </div>
   );
 }
-
