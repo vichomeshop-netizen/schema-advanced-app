@@ -1,7 +1,7 @@
 // app/routes/app._index.jsx
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useOutletContext } from "@remix-run/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { prisma } from "~/lib/prisma.server";
 
 /** Deriva shop desde host (base64url) si falta ?shop= */
@@ -49,19 +49,26 @@ function SchemaStatusCardNoInput({ shop }) {
   const [lastPingAt, setLastPingAt] = useState(null);
   const [method, setMethod] = useState("fetch");
 
-  function toast(msg) {
-    try { window.shopify?.toast?.show(msg); } catch {}
-  }
+  // Control de sesión de verificación para no pisar resultados
+  const verifyRef = useRef({ id: 0, done: false });
+
+  function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
+  function log(...a) { try { console.debug("[SAE]", ...a); } catch {} }
 
   // 🔔 Escucha el postMessage del escaparate (?sae_ping=1)
   useEffect(() => {
     function onMessage(ev) {
       const d = ev?.data;
       if (!d || d.source !== "schema-advanced" || d.type !== "sae-status") return;
+      log("postMessage recibido:", d);
+      // Marcar verificación actual como satisfecha
+      verifyRef.current.done = true;
+
+      // Si el usuario cambió de ruta mientras tanto, aún así mostramos el estado
       setDetected(!!d.ok);
       setLastPingAt(new Date());
       setMethod("ping");
-      try { window.shopify?.toast?.show(d.ok ? "Schema detectado (ping)" : "No detectado (ping)"); } catch {}
+      toast(d.ok ? "Schema detectado (ping)" : "No detectado (ping)");
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -93,15 +100,33 @@ function SchemaStatusCardNoInput({ shop }) {
   }, [shop]);
 
   async function loadStatus(mode = "fetch", path = activePath) {
+    // Si ya tenemos ping satisfactorio para esta sesión, no pisar
+    if (verifyRef.current.done && mode !== "ping") {
+      log("Ignoro fetch porque ya llegó ping");
+      return;
+    }
+
     setLoading(true);
     try {
       const r = await fetch(
         `/api/schema/status?shop=${encodeURIComponent(shop)}&mode=${mode}&path=${encodeURIComponent(path)}`
       );
       const j = await r.json();
-      setDetected(!!j.detected);
-      setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
-      setMethod(j.method || mode);
+
+      // Heurística password/redirects (opcional si tu API lo devuelve)
+      if (j?.blocked === "password" || j?.htmlIncludesPassword) {
+        setDetected(null);
+        setMethod("fetch/password");
+        toast("La tienda parece protegida con contraseña o redirigida. Usa preview o quita la password.");
+        return;
+      }
+
+      // Solo aplica si no hubo ping
+      if (!verifyRef.current.done) {
+        setDetected(!!j.detected);
+        setLastPingAt(j.lastPingAt ? new Date(j.lastPingAt) : null);
+        setMethod(j.method || mode);
+      }
     } finally {
       setLoading(false);
     }
@@ -115,14 +140,41 @@ function SchemaStatusCardNoInput({ shop }) {
   function verifyNow() {
     setLoading(true);
     setDetected(null);
+
+    const id = (verifyRef.current.id || 0) + 1;
+    verifyRef.current = { id, done: false };
+
     toast("Verificando en el escaparate…");
-
     const url = `https://${shop}${activePath}?sae_ping=1`;
-    // ⚠️ Importante: abrir SIN noopener para que window.opener exista
-    window.open(url, "_blank");
 
-    // Fallback por si el postMessage no llega (CSP, bloqueadores, etc.)
-    setTimeout(() => loadStatus("fetch", activePath), 7000);
+    // 1) Intento principal: abrir pestaña (SIN noopener para tener window.opener)
+    const win = window.open(url, "_blank");
+    log("Abrí ventana:", !!win);
+
+    // 2) Fallback si el navegador bloquea el popup → iframe oculto (usará window.parent)
+    if (!win) {
+      const iframe = document.createElement("iframe");
+      iframe.src = url;
+      Object.assign(iframe.style, {
+        position: "fixed",
+        width: "1px",
+        height: "1px",
+        opacity: "0",
+        pointerEvents: "none",
+        inset: "0 auto auto 0",
+      });
+      document.body.appendChild(iframe);
+      setTimeout(() => { try { iframe.remove(); } catch {} }, 25000);
+      log("Usando fallback iframe");
+    }
+
+    // 3) Fallback visual: si en 12s no llegó ping, consultamos HTML publicado
+    setTimeout(() => {
+      if (verifyRef.current.id === id && !verifyRef.current.done) {
+        log("No llegó ping a tiempo; lanzo fetch fallback");
+        loadStatus("fetch", activePath);
+      }
+    }, 12000);
   }
 
   const badge = useMemo(() => {
@@ -246,7 +298,7 @@ function SchemaStatusCardNoInput({ shop }) {
       </div>
 
       <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-        Busco estrictamente <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code> en el HTML publicado.
+        Busco estrictamente <code>&lt;script type="application/ld+json" data-sae="1"&gt;</code> en el HTML publicado. Si tu tienda no es pública, usa el botón de ping.
       </p>
     </section>
   );
@@ -460,6 +512,7 @@ export default function Overview() {
     </div>
   );
 }
+
 
 
 
