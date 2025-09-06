@@ -49,7 +49,11 @@ function SchemaStatusCardNoInput({ shop }) {
   const [lastPingAt, setLastPingAt] = useState(null);
   const [method, setMethod] = useState("fetch");
 
-  function toast(msg) { try { window.shopify?.toast?.show(msg); } catch {} }
+  function toast(msg) {
+    try {
+      window.shopify?.toast?.show(msg);
+    } catch {}
+  }
 
   // Descubre rutas candidatas al montar y hace 1ª comprobación (publicado)
   useEffect(() => {
@@ -60,10 +64,10 @@ function SchemaStatusCardNoInput({ shop }) {
         const ps = Array.isArray(j.paths) && j.paths.length ? j.paths : ["/"];
         setPaths(ps);
         const pick =
-          ps.find(p => p.startsWith("/products/")) ||
-          ps.find(p => p.startsWith("/collections/")) ||
-          ps.find(p => p.startsWith("/blogs/")) ||
-          ps.find(p => p.startsWith("/pages/")) ||
+          ps.find((p) => p.startsWith("/products/")) ||
+          ps.find((p) => p.startsWith("/collections/")) ||
+          ps.find((p) => p.startsWith("/blogs/")) ||
+          ps.find((p) => p.startsWith("/pages/")) ||
           "/";
         setActivePath(pick);
         await checkPublished(pick);
@@ -103,8 +107,12 @@ function SchemaStatusCardNoInput({ shop }) {
     // Abre en nueva pestaña para no sacar al merchant del panel
     const url = `https://${shop}${activePath}?sae_ping=1`;
     const a = document.createElement("a");
-    a.href = url; a.target = "_blank"; a.rel = "noopener";
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     // Tras el render del storefront, vuelve a comprobar
     setTimeout(() => loadStatus("db", activePath), 4000);
   }
@@ -119,17 +127,23 @@ function SchemaStatusCardNoInput({ shop }) {
   const chipLabel = (p) =>
     p === "/"
       ? "Home"
-      : p.startsWith("/products/") ? "Producto"
-      : p.startsWith("/collections/") ? "Colección"
-      : p.startsWith("/blogs/") ? "Artículo"
-      : p.startsWith("/pages/") ? "Página"
+      : p.startsWith("/products/")
+      ? "Producto"
+      : p.startsWith("/collections/")
+      ? "Colección"
+      : p.startsWith("/blogs/")
+      ? "Artículo"
+      : p.startsWith("/pages/")
+      ? "Página"
       : p;
 
   return (
     <section
       style={{
         background: "#fff",
-        border: "1px solid #e5e7eb",
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: "#e5e7eb",
         borderRadius: 10,
         padding: 16,
         marginTop: 12,
@@ -144,7 +158,9 @@ function SchemaStatusCardNoInput({ shop }) {
             gap: 8,
             padding: "4px 8px",
             borderRadius: 999,
-            border: `1px solid ${badge.bd}`,
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: badge.bd,
             background: badge.bg,
             color: badge.tx,
             fontSize: 12,
@@ -163,13 +179,18 @@ function SchemaStatusCardNoInput({ shop }) {
           return (
             <button
               key={p}
-              onClick={() => { setActivePath(p); checkPublished(p); }}
+              onClick={() => {
+                setActivePath(p);
+                checkPublished(p);
+              }}
               type="button"
               title={p}
               style={{
                 padding: "6px 10px",
                 borderRadius: 999,
-                border: `1px solid ${isActive ? "#111827" : "#d1d5db"}`,
+                borderWidth: 1,
+                borderStyle: "solid",
+                borderColor: isActive ? "#111827" : "#d1d5db",
                 background: isActive ? "#111827" : "#fff",
                 color: isActive ? "#fff" : "#111827",
                 fontSize: 12,
@@ -183,7 +204,8 @@ function SchemaStatusCardNoInput({ shop }) {
       </div>
 
       <div style={{ marginTop: 10, color: "#374151", fontSize: 13 }}>
-        Ruta: <code>{activePath}</code> · Método: <code>{method}</code> · Último visto: {lastPingAt ? lastPingAt.toLocaleString() : "—"}
+        Ruta: <code>{activePath}</code> · Método: <code>{method}</code> · Último visto:{" "}
+        {lastPingAt ? lastPingAt.toLocaleString() : "—"}
       </div>
 
       <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -193,7 +215,9 @@ function SchemaStatusCardNoInput({ shop }) {
           style={{
             padding: "8px 12px",
             borderRadius: 8,
-            border: "1px solid #111827",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: "#111827",
             background: "#111827",
             color: "#fff",
             cursor: "pointer",
@@ -208,7 +232,9 @@ function SchemaStatusCardNoInput({ shop }) {
           style={{
             padding: "8px 12px",
             borderRadius: 8,
-            border: "1px solid #e5e7eb",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: "#e5e7eb",
             background: "#fff",
             color: "#111827",
             cursor: "pointer",
@@ -254,9 +280,6 @@ const TEXT = {
     ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plan activo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sin suscripción",
-    verifyTitle: "Verificar inyección del schema",
-    verifyHelp:
-      'Abre el escaparate con ?sae_ping=1 y comprueba si existe exactamente <script type="application/ld+json" data-sae="1">. Si el snippet de ping está en tu tema, verás el estado aquí tras unos segundos.',
   },
   en: {
     title: "Schema Advanced — Overview",
@@ -286,9 +309,6 @@ const TEXT = {
     ctas: { openEditor: "Open Theme Editor", openRRT: "Open Rich Results Test" },
     badgeActive: (planName) => `Active plan${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "No subscription",
-    verifyTitle: "Verify schema injection",
-    verifyHelp:
-      'Opens the storefront with ?sae_ping=1 and checks for exactly <script type="application/ld+json" data-sae="1">. If the ping snippet is installed, you’ll see status here in a few seconds.',
   },
   pt: {
     title: "Schema Advanced — Visão geral",
@@ -318,9 +338,6 @@ const TEXT = {
     ctas: { openEditor: "Abrir editor de temas", openRRT: "Abrir Rich Results Test" },
     badgeActive: (planName) => `Plano ativo${planName ? ` — ${planName}` : ""}`,
     badgeInactive: "Sem assinatura",
-    verifyTitle: "Verificar injeção do schema",
-    verifyHelp:
-      'Abre a vitrine com ?sae_ping=1 y verifica exactamente <script type="application/ld+json" data-sae="1">.',
   },
 };
 
@@ -353,12 +370,14 @@ export default function Overview() {
             borderRadius: 999,
             fontSize: 12,
             fontWeight: 600,
-            border: isActive ? "1px solid #10b981" : "1px solid #d1d5db",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: isActive ? "#10b981" : "#d1d5db",
             color: isActive ? "#065f46" : "#374151",
             background: isActive ? "#ecfdf5" : "#f9fafb",
           }}
         >
-          {isActive ? t.badgeActive(planName) : t.badgeInactive}
+          {isActive ? (planName ? `Plan activo — ${planName}` : "Plan activo") : "Sin suscripción"}
         </span>
       </div>
 
@@ -369,7 +388,9 @@ export default function Overview() {
       <section
         style={{
           background: "#fff",
-          border: "1px solid #e5e7eb",
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: "#e5e7eb",
           borderRadius: 10,
           padding: 16,
           marginTop: 12,
@@ -384,7 +405,9 @@ export default function Overview() {
             style={{
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid "#111827",
+              borderWidth: 1,
+              borderStyle: "solid",
+              borderColor: "#111827",
               background: "#111827",
               color: "#fff",
               cursor: "pointer",
@@ -402,7 +425,9 @@ export default function Overview() {
             style={{
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              borderWidth: 1,
+              borderStyle: "solid",
+              borderColor: "#e5e7eb",
               background: "#fff",
               color: "#111827",
               textDecoration: "none",
@@ -420,7 +445,9 @@ export default function Overview() {
       <section
         style={{
           background: "#fff",
-          border: "1px solid "#e5e7eb",
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: "#e5e7eb",
           borderRadius: 10,
           padding: 16,
           marginTop: 12,
@@ -432,4 +459,5 @@ export default function Overview() {
     </div>
   );
 }
+
 
