@@ -49,6 +49,7 @@
 
 
 
+
 {%- comment -%} ====== Organization (todas las páginas) ====== {%- endcomment -%}
 {%- assign _public_email = block.settings.org_email | default: shop.customer_email | default: shop.email -%}
 
@@ -77,21 +78,8 @@
   {%- assign _same_first = false -%}
 {%- endfor -%}
 
-{%- comment -%} alternateName: textarea separada por comas; limpia comillas y deduplica {%- endcomment -%}
-{%- assign _alt_raw = block.settings.org_alternate_names | default: '' -%}
-{%- assign _alt_parts = _alt_raw | split: ',' -%}
-{%- assign _alt_items = '' -%}
-{%- assign _alt_seen = '|' -%}
-{%- assign _alt_first = true -%}
-{%- for n in _alt_parts -%}
-  {%- assign v = n | strip | remove: '"' | remove: "'" -%}
-  {%- if v == '' -%}{%- continue -%}{%- endif -%}
-  {%- assign k = '|' | append: v | append: '|' -%}
-  {%- if _alt_seen contains k -%}{%- continue -%}{%- endif -%}
-  {%- assign _alt_seen = _alt_seen | append: v | append: '|' -%}
-  {%- capture _alt_items -%}{{ _alt_items }}{% unless _alt_first %},{% endunless %}{{ v | json }}{%- endcapture -%}
-  {%- assign _alt_first = false -%}
-{%- endfor -%}
+{%- comment -%} alternateName: CAMPO ÚNICO (sin comas, no array) {%- endcomment -%}
+{%- assign _alt_one = block.settings.org_alternate_names | default: '' | strip | remove: '"' | remove: "'" -%}
 
 {%- comment -%} Countries: lee shipping_countries (block o section), normaliza alias y deduplica {%- endcomment -%}
 {%- assign _ship_raw = block.settings.shipping_countries | default: section.settings.shipping_countries | default: '' -%}
@@ -125,8 +113,8 @@
   "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }},
   "url": {{ shop.url | json | replace: '\/','/' }},
   "name": {{ shop.name | json }},
-  "legalName": {{ block.settings.org_legal_name | default: shop.name | json }}{% if _alt_items != '' %},
-  "alternateName": [ {{ _alt_items }} ]{% endif %}{% if block.settings.org_logo %}
+  "legalName": {{ block.settings.org_legal_name | default: shop.name | json }}{% if _alt_one != '' %},
+  "alternateName": {{ _alt_one | json }}{% endif %}{% if block.settings.org_logo %}
   ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json | replace: '\/','/' }}
   ,"image": { "@type": "ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}{% if _sameas_items != '' %}
   ,"sameAs": [ {{ _sameas_items }} ]{% endif %}
@@ -156,7 +144,6 @@
   }
 }
 </script>
-
 
   
 

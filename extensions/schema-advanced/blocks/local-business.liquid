@@ -1,60 +1,21 @@
-{%- comment -%}
-  =========================
-  SCHEMA ADVANCED ES/PT — GLOBAL
-  =========================
+{% comment %}
+  Theme App Block: Schema Advanced — LocalBusiness
+  - Emite LocalBusiness/Store/HardwareStore con 25 campos configurables.
+  - data-sae="lb" para no ser eliminado por el supresor del Core.
+{% endcomment %}
 
-  Emite:
-  • Organization (todas las páginas)
-  • WebSite (solo home)
-  • BreadcrumbList simple (Home → Colección → Producto) — con toggle
-  • Collection WebPage/CollectionPage + FAQPage (metafield o metaobjetos) — handle único `namespace.key` (p. ej. custom.faq)
-  • Product (PDP) con Brand, GTIN/MPN, AggregateOffer/Offer, handling/transit/rate opcional, política de devoluciones
-  • BlogPosting (artículos) + HowTo autogenerado (≥2 H2)
-  • ContactPage y AboutPage cuando aplique
+{% liquid
+  assign ORG_ID = shop.url | append: "#org"
+  assign LB_ID  = shop.url | append: "#local"
+  assign public_email = block.settings.lb_email | default: shop.customer_email | default: shop.email
 
-  Además:
-  • Supresor de JSON-LD del tema (MutationObserver) — elimina los tipos que emite la app.
-{%- endcomment -%}
+  # LOGO (opcional)
+  assign LOGO600  = block.settings.lb_logo | image_url: width: 600  | prepend: "https:" 
+  assign LOGO1200 = block.settings.lb_logo | image_url: width: 1200 | prepend: "https:"
+%}
 
-{%- comment -%} ====== UTIL: idioma de salida (ES/PT; si no -> EN) ====== {%- endcomment -%}
-{%- assign _lang_mode = block.settings.language_mode | default: 'auto' -%}
-{%- case _lang_mode -%}
-  {%- when 'es' -%}
-    {%- assign _lang_out = 'es-ES' -%}
-  {%- when 'pt' -%}
-    {%- assign _lang_out = 'pt-PT' -%}
-  {%- when 'en' -%}
-    {%- assign _lang_out = 'en' -%}
-  {%- else -%}
-    {%- assign _lc = request.locale.iso_code | downcase -%}
-    {%- if _lc == blank and localization and localization.language and localization.language.iso_code -%}
-      {%- assign _lc = localization.language.iso_code | downcase -%}
-    {%- endif -%}
-    {%- if _lc == blank and routes and routes.root_url -%}
-      {%- assign _ru = routes.root_url | downcase -%}
-      {%- if _ru == '/es' -%}{%- assign _lc = 'es' -%}{%- elsif _ru == '/pt' -%}{%- assign _lc = 'pt' -%}{%- endif -%}
-    {%- endif -%}
-    {%- if _lc == blank and shop and shop.primary_locale -%}
-      {%- assign _lc = shop.primary_locale | downcase -%}
-    {%- endif -%}
-    {%- assign _lc2 = _lc | slice: 0, 2 -%}
-    {%- if _lc2 == 'es' -%}
-      {%- assign _lang_out = 'es-ES' -%}
-    {%- elsif _lc2 == 'pt' -%}
-      {%- assign _lang_out = 'pt-PT' -%}
-    {%- else -%}
-      {%- assign _lang_out = 'en' -%}
-    {%- endif -%}
-{%- endcase -%}
-
-
-
-
-{%- comment -%} ====== Organization (todas las páginas) ====== {%- endcomment -%}
-{%- assign _public_email = block.settings.org_email | default: shop.customer_email | default: shop.email -%}
-
-{%- comment -%} sameAs: admite coma o espacio como separador; añade https:// si falta; deduplica {%- endcomment -%}
-{%- assign _sameas_raw = block.settings.org_sameas | default: '' -%}
+{%- comment -%} ===== sameAs (coma o espacio; añade https://; deduplica) ===== {%- endcomment -%}
+{%- assign _sameas_raw = block.settings.lb_sameas | default: '' -%}
 {%- if _sameas_raw contains ',' -%}
   {%- assign _sameas_parts = _sameas_raw | split: ',' -%}
 {%- else -%}
@@ -66,26 +27,22 @@
 {%- for t in _sameas_parts -%}
   {%- assign u = t | strip | remove: '"' | remove: "'" -%}
   {%- if u == '' -%}{%- continue -%}{%- endif -%}
-  {%- if u contains '://' -%}
-    {%- assign u_full = u -%}
-  {%- else -%}
-    {%- assign u_full = 'https://' | append: u -%}
-  {%- endif -%}
+  {%- if u contains '://' -%}{%- assign u_full = u -%}{%- else -%}{%- assign u_full = 'https://' | append: u -%}{%- endif -%}
   {%- assign needle = '|' | append: u_full | append: '|' -%}
   {%- if _same_seen contains needle -%}{%- continue -%}{%- endif -%}
   {%- assign _same_seen = _same_seen | append: u_full | append: '|' -%}
-  {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _same_first %},{% endunless %}{{ u_full | json }}{%- endcapture -%}
+  {%- capture _sameas_items -%}{{ _sameas_items }}{% unless _same_first %},{% endunless %}{{ u_full | json | replace: '\/','/' }}{%- endcapture -%}
   {%- assign _same_first = false -%}
 {%- endfor -%}
 
-{%- comment -%} Countries: lee shipping_countries (block o section), normaliza alias y deduplica {%- endcomment -%}
-{%- assign _ship_raw = block.settings.shipping_countries | default: section.settings.shipping_countries | default: '' -%}
-{%- assign _ship_compact = _ship_raw | upcase | replace: ' ', '' -%}
-{%- assign _ship_parts = _ship_compact | split: ',' -%}
-{%- assign _codes_seen = '|' -%}
-{%- assign _codes_list = '' -%}
-{%- assign _codes_first = true -%}
-{%- for p in _ship_parts -%}
+{%- comment -%} ===== areaServed (códigos país; normaliza alias; deduplica) ===== {%- endcomment -%}
+{%- assign _areas_raw = block.settings.lb_area_served | default: '' -%}
+{%- assign _areas_up = _areas_raw | upcase | replace: ' ', '' -%}
+{%- assign _areas_parts = _areas_up | split: ',' -%}
+{%- assign _areas_seen = '|' -%}
+{%- assign _areas_items = '' -%}
+{%- assign _areas_first = true -%}
+{%- for p in _areas_parts -%}
   {%- assign code = p | strip -%}
   {%- if code == '' -%}{%- continue -%}{%- endif -%}
   {%- case code -%}
@@ -97,905 +54,219 @@
     {%- when 'EL' -%}{%- assign code = 'GR' -%}
   {%- endcase -%}
   {%- assign k = '|' | append: code | append: '|' -%}
-  {%- if _codes_seen contains k -%}{%- continue -%}{%- endif -%}
-  {%- assign _codes_seen = _codes_seen | append: code | append: '|' -%}
-  {%- capture _codes_list -%}{{ _codes_list }}{% unless _codes_first %},{% endunless %}{{ code | json }}{%- endcapture -%}
-  {%- assign _codes_first = false -%}
+  {%- if _areas_seen contains k -%}{%- continue -%}{%- endif -%}
+  {%- assign _areas_seen = _areas_seen | append: code | append: '|' -%}
+  {%- capture _areas_items -%}{{ _areas_items }}{% unless _areas_first %},{% endunless %}{{ code | json }}{%- endcapture -%}
+  {%- assign _areas_first = false -%}
 {%- endfor -%}
 
-<script type="application/ld+json" data-sae="1">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": {{ shop.url | append: "#org" | json }},
-  "url": {{ shop.url | json }},
-  "name": {{ shop.name | json }},
-  "legalName": {{ shop.name | json }}{% if block.settings.org_logo %}
-  ,"logo": {{ block.settings.org_logo | image_url: width: 600 | prepend: "https:" | json }}
-  ,"image": { "@type": "ImageObject", "url": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json }} }{% endif %}{% if _sameas_items != '' %}
-  ,"sameAs": [ {{ _sameas_items }} ]{% endif %}
-  ,"email": {{ _public_email | json }}
-  ,"contactPoint": {
-    "@type": "ContactPoint",
-    "contactType": "customer support"{% if block.settings.org_phone and block.settings.org_phone != '' %},
-    "telephone": {{ block.settings.org_phone | json }}{% endif %},
-    "email": {{ _public_email | json }}
-  }
-  ,"address": {
-    "@type": "PostalAddress"{% if block.settings.address_street and block.settings.address_street != '' %},
-    "streetAddress": {{ block.settings.address_street | json }}{% endif %}{% if block.settings.address_city and block.settings.address_city != '' %},
-    "addressLocality": {{ block.settings.address_city | json }}{% endif %}{% if block.settings.address_postal and block.settings.address_postal != '' %},
-    "postalCode": {{ block.settings.address_postal | json }}{% endif %}{% if block.settings.address_country and block.settings.address_country != '' %},
-    "addressCountry": {{ block.settings.address_country | upcase | json }}{% endif %}
-  }{% if _codes_list != '' %}
-  ,"areaServed": [ {{ _codes_list }} ]{% endif %}
-  ,"hasMerchantReturnPolicy": {
-    "@type": "MerchantReturnPolicy",
-    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-    "merchantReturnDays": {{ block.settings.returns_days | default: 30 | times: 1 }},
-    "refundType": "https://schema.org/FullRefund",
-    "returnMethod": "https://schema.org/ReturnByMail",
-    "returnFees": "https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"{% if _codes_list != '' %}
-    ,"applicableCountry": [ {{ _codes_list }} ]{% endif %}
-  }
-}
-</script>
-
-
-{%- comment -%} ====== LocalBusiness (hereda de Organization + extras simples) ====== {%- endcomment -%}
-{%- if block.settings.emit_localbusiness -%}
-  {%- if request.page_type == 'index' or template contains 'contact' or template contains 'about' -%}
-
-  {%- assign _lb_name    = block.settings.localbusiness_name | default: shop.name -%}
-  {%- assign _lb_phone   = block.settings.org_phone -%}
-  {%- assign _lb_email   = _public_email -%}
-  {%- assign _lb_street  = block.settings.address_street -%}
-  {%- assign _lb_city    = block.settings.address_city -%}
-  {%- assign _lb_postal  = block.settings.address_postal -%}
-  {%- assign _lb_country = block.settings.address_country | upcase -%}
-  {%- assign _lb_price   = block.settings.localbusiness_price_range | default: '' -%}
-  {%- assign _lb_gbp     = block.settings.localbusiness_gbp_url | to_string | strip -%}
-  {%- assign _lb_lat     = '' -%}
-  {%- assign _lb_lng     = '' -%}
-
-  {%- assign _geo = block.settings.localbusiness_geo_coords | to_string | strip -%}
-  {%- if _geo != '' and _geo contains ',' -%}
-    {%- assign _geo_parts = _geo | split: ',' -%}
-    {%- assign _lb_lat = _geo_parts[0] | strip -%}
-    {%- assign _lb_lng = _geo_parts[1] | strip -%}
-  {%- endif -%}
-
-<script type="application/ld+json" data-sae="1">
-{
-  "@context":"https://schema.org",
-  "@type":[
-    "LocalBusiness"
-    {%- if block.settings.localbusiness_type and block.settings.localbusiness_type != 'LocalBusiness' -%}
-    , {{ block.settings.localbusiness_type | json }}
-    {%- endif -%}
-  ],
-  "@id": {{ shop.url | append: "#local" | json | replace: '\/','/' }},
-  "url": {{ shop.url | json | replace: '\/','/' }},
-  "name": {{ _lb_name | json }},
-  {%- if _lb_phone and _lb_phone != '' -%}"telephone": {{ _lb_phone | json }},{%- endif -%}
-  {%- if _lb_email and _lb_email != '' -%}"email": {{ _lb_email | json }},{%- endif -%}
-  {%- if block.settings.org_logo -%}
-  "image": {{ block.settings.org_logo | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }},
-  {%- endif -%}
-  "address": {
-    "@type":"PostalAddress"
-    {%- if _lb_street and _lb_street != '' -%}, "streetAddress": {{ _lb_street | json }}{%- endif -%}
-    {%- if _lb_city   and _lb_city   != '' -%}, "addressLocality": {{ _lb_city | json }}{%- endif -%}
-    {%- if _lb_postal and _lb_postal != '' -%}, "postalCode": {{ _lb_postal | json }}{%- endif -%}
-    {%- if _lb_country and _lb_country != '' -%}, "addressCountry": {{ _lb_country | json }}{%- endif -%}
-  }
-  {%- if _lb_gbp != '' -%},
-  "sameAs": [ {{ _lb_gbp | json }} ]
-  {%- endif -%}
-  {%- if _lb_lat != '' and _lb_lng != '' -%},
-  "geo": { "@type":"GeoCoordinates", "latitude": {{ _lb_lat | replace: ',', '.' }}, "longitude": {{ _lb_lng | replace: ',', '.' }} },
-  "hasMap": {{ "https://www.google.com/maps?q=" | append: _lb_lat | append: "," | append: _lb_lng | json }}
-  {%- elsif _lb_gbp != '' -%},
-  "hasMap": {{ _lb_gbp | json }}
-  {%- endif -%}
-  {%- if _lb_price != '' -%}, "priceRange": {{ _lb_price | json }}{%- endif -%},
-  "parentOrganization": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
-}
-</script>
-  {%- endif -%}
-{%- endif -%}    
-
-
-
-
-{%- comment -%} ====== WebSite (solo Home) ====== {%- endcomment -%}
-{%- if request.page_type == 'index' -%}
-  {%- capture _search_target -%}{{ shop.url }}/search?q={search_term_string}{%- endcapture -%}
-<script type="application/ld+json" data-sae="1">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }},
-  "url": {{ shop.url | json | replace: '\/','/' }},
-  "name": {{ shop.name | json }},
-  "inLanguage": {{ _lang_out | json }},
-  "publisher": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {{ _search_target | json | replace: '\/','/' }},
-    "query-input": "required name=search_term_string"
-  }
-}
-</script>
+{%- comment -%} ===== geo (lat,lng desde texto "lat,lng") ===== {%- endcomment -%}
+{%- assign _geo_lat = '' -%}{%- assign _geo_lng = '' -%}
+{%- assign _geo_txt = block.settings.lb_geo_coords | default: '' | strip -%}
+{%- if _geo_txt contains ',' -%}
+  {%- assign _geo_parts = _geo_txt | split: ',' -%}
+  {%- assign _geo_lat = _geo_parts[0] | strip -%}
+  {%- assign _geo_lng = _geo_parts[1] | strip -%}
 {%- endif -%}
 
+{%- comment -%} ===== openingHoursSpecification ===== {%- endcomment -%}
+{%- assign _oh_mode = block.settings.lb_opening_mode | default: 'weekly' -%}
+{%- assign _oh_json = '' -%}
 
-{%- comment -%} ====== BreadcrumbList simple (toggle) ====== {%- endcomment -%}
-{%- if block.settings.emit_breadcrumbs -%}
-  {%- assign _items_json = '' -%}
-  {%- assign _pos = 1 -%}
-  {%- assign _shop_base = shop.url -%}
-
-  {%- capture _home -%}
-{ "@type":"ListItem","position": {{ _pos }},"name":"Inicio","item": { "@type":"WebPage","@id": {{ _shop_base | append: "/" | json | replace: '\/','/' }} } }
-  {%- endcapture -%}
-  {%- assign _items_json = _home -%}
-  {%- assign _pos = _pos | plus: 1 -%}
-
-  {%- if request.page_type == 'collection' -%}
-    {%- capture _coll -%}
-, { "@type":"ListItem","position": {{ _pos }},"name": {{ collection.title | strip_html | json }},"item": { "@type":"CollectionPage","@id": {{ shop.url | append: collection.url | json | replace: '\/','/' }} } }
-    {%- endcapture -%}
-    {%- assign _items_json = _items_json | append: _coll -%}
-  {%- elsif request.page_type == 'product' -%}
-    {%- assign _coll_for_breadcrumb = nil -%}
-    {%- if collection and collection.url -%}
-      {%- assign _coll_for_breadcrumb = collection -%}
-    {%- elsif product and product.collections.size > 0 -%}
-      {%- assign _coll_for_breadcrumb = product.collections.first -%}
-    {%- endif -%}
-    {%- if _coll_for_breadcrumb -%}
-      {%- capture _bc_coll -%}
-, { "@type":"ListItem","position": {{ _pos }},"name": {{ _coll_for_breadcrumb.title | strip_html | json }},"item": { "@type":"CollectionPage","@id": {{ shop.url | append: _coll_for_breadcrumb.url | json | replace: '\/','/' }} } }
-      {%- endcapture -%}
-      {%- assign _items_json = _items_json | append: _bc_coll -%}
-      {%- assign _pos = _pos | plus: 1 -%}
-    {%- endif -%}
-    {%- capture _bc_prod -%}
-, { "@type":"ListItem","position": {{ _pos }},"name": {{ product.title | strip_html | json }},"item": { "@type":"WebPage","@id": {{ shop.url | append: product.url | json | replace: '\/','/' }} } }
-    {%- endcapture -%}
-    {%- assign _items_json = _items_json | append: _bc_prod -%}
-  {%- endif -%}
-
-  {%- if _items_json != '' -%}
-<script type="application/ld+json" data-sae="1">
-{ "@context":"https://schema.org", "@type":"BreadcrumbList", "itemListElement":[ {{ _items_json }} ] }
-</script>
-  {%- endif -%}
-{%- endif -%}
-
-{%- comment -%} ====== Collection: WebPage/CollectionPage + FAQPage ====== {%- endcomment -%}
-{%- if request.page_type == 'collection' -%}
-
-{%- assign _desc = collection.description | strip_html | truncate: 300 -%}
-<script type="application/ld+json" data-sae="1">
+{%- if _oh_mode == '24_7' -%}
+  {%- capture _oh_json -%}
 [
-  {
-    "@context":"https://schema.org",
-    "@type":["WebPage","CollectionPage"],
-    "@id": {{ shop.url | append: collection.url | append: "#collection" | json | replace: '\/','/' }},
-    "url": {{ shop.url | append: collection.url | json | replace: '\/','/' }},
-    "name": {{ collection.title | strip_html | json }},
-    "description": {{ _desc | json }},
-    "inLanguage": {{ _lang_out | json }}{% if collection.updated_at %},
-    "dateModified": "{{ collection.updated_at | date: '%Y-%m-%dT%H:%M:%SZ' }}"{% endif %},
-    "isPartOf": { "@type":"WebSite", "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }} }{% if collection.image %},
-    "primaryImageOfPage": { "@type": "ImageObject", "url": {{ collection.image | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} }{% endif %}
-  },
-  {
-    "@context":"https://schema.org",
-    "@type":"ItemList",
-    "@id": {{ shop.url | append: collection.url | append: "#list" | json | replace: '\/','/' }},
-    "url": {{ shop.url | append: collection.url | json | replace: '\/','/' }},
-    "name": {{ collection.title | strip_html | json }},
-    "itemListOrder": "https://schema.org/ItemListOrderAscending",
-    "numberOfItems": {{ collection.products_count | default: collection.all_products_count | default: collection.products.size }},
-    "itemListElement": [
-      {%- assign _pos = 1 -%}
-      {%- for p in collection.products limit: 12 -%}
-        {%- assign _img_url = '' -%}
-        {%- if p.featured_image -%}
-          {%- assign _img_url = p.featured_image | image_url: width: 1000 | prepend: "https:" -%}
-        {%- endif -%}
-        {
-          "@type": "ListItem",
-          "position": {{ _pos }},
-          "item": {
-            "@type": "Product",
-            "name": {{ p.title | strip_html | json }},
-            "url": {{ shop.url | append: p.url | json | replace: '\/','/' }}{% if _img_url != '' %},
-            "image": {{ _img_url | json | replace: '\/','/' }}{% endif %},
-            "brand": { "@type": "Brand", "name": {{ p.vendor | default: shop.name | json }} },
-            "offers": {
-              "@type": "Offer",
-              "priceCurrency": "{{ cart.currency.iso_code }}",
-              "price": "{{ p.price | divided_by: 100.00 }}",
-              "availability": "https://schema.org/{% if p.available %}InStock{% else %}OutOfStock{% endif %}",
-              "itemCondition": "https://schema.org/NewCondition",
-              "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
-            }
-          }
-        }{% unless forloop.last %},{% endunless %}
-        {%- assign _pos = _pos | plus: 1 -%}
-      {%- endfor -%}
-    ]
+  { "@type":"OpeningHoursSpecification",
+    "dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens":"00:00","closes":"23:59"
   }
 ]
-</script>
+  {%- endcapture -%}
 
+{%- elsif _oh_mode == 'closed' -%}
+  {%- assign _oh_json = '' -%}
 
-  {%- comment -%} ====== FAQPage con un único handle (namespace.key) ====== {%- endcomment -%}
-  {%- assign _faq_handle = block.settings.faq_handle | strip | default: 'custom.faq' -%}
-  {%- if _faq_handle contains '.' -%}
-    {%- assign _parts = _faq_handle | split: '.' -%}
-    {%- assign _ns = _parts[0] | strip -%}
-    {%- assign _key = _parts[1] | strip -%}
-  {%- else -%}
-    {%- assign _ns = 'custom' -%}
-    {%- assign _key = _faq_handle -%}
+{%- elsif _oh_mode == 'manual_json' -%}
+  {%- assign _manual = block.settings.lb_hours_json | strip -%}
+  {%- if _manual != '' -%}{%- assign _oh_json = _manual -%}{%- endif -%}
+
+{%- else -%}{% comment %} weekly {% endcomment %}
+  {%- assign _wd_open = block.settings.lb_hours_weekdays_open | default: '09:00' -%}
+  {%- assign _wd_close = block.settings.lb_hours_weekdays_close | default: '18:00' -%}
+  {%- assign _sa_open = block.settings.lb_hours_sat_open | default: '' -%}
+  {%- assign _sa_close = block.settings.lb_hours_sat_close | default: '' -%}
+  {%- assign _su_open = block.settings.lb_hours_sun_open | default: '' -%}
+
+  {%- capture _oh -%}
+[
+  { "@type":"OpeningHoursSpecification",
+    "dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],
+    "opens":"{{ _wd_open }}","closes":"{{ _wd_close }}" }
+  {%- if _sa_open != '' and _sa_close != '' -%}
+  ,{ "@type":"OpeningHoursSpecification",
+    "dayOfWeek":"Saturday",
+    "opens":"{{ _sa_open }}","closes":"{{ _sa_close }}" }
   {%- endif -%}
-
-  {%- assign _faq_mf = collection.metafields[_ns][_key] -%}
-  {%- assign _faq_items = '' -%}
-  {%- assign _faq_count = 0 -%}
-
-  {%- if _faq_mf -%}
-    {%- assign _mf_type = _faq_mf.type | default: '' -%}
-
-    {%- if _mf_type contains 'metaobject' -%}
-      {%- assign _entries = _faq_mf.value -%}
-      {%- if _entries -%}
-        {%- for entry in _entries -%}
-          {%- assign _q = entry.question.value | default: entry.question | default: entry.pregunta.value | default: entry.pregunta -%}
-          {%- assign _a = entry.answer.value  | default: entry.answer  | default: entry.respuesta.value | default: entry.respuesta -%}
-          {%- assign _q = _q | append: '' | strip -%}
-          {%- assign _a = _a | append: '' | strip -%}
-          {%- if _q != '' and _a != '' -%}
-            {%- if _faq_items != '' -%}{%- assign _faq_items = _faq_items | append: ',' -%}{%- endif -%}
-            {%- capture _one -%}
-{ "@type":"Question","name": {{ _q | json }},"acceptedAnswer": { "@type":"Answer","text": {{ _a | json }} } }
-            {%- endcapture -%}
-            {%- assign _faq_items = _faq_items | append: _one -%}
-            {%- assign _faq_count = _faq_count | plus: 1 -%}
-          {%- endif -%}
-        {%- endfor -%}
-      {%- endif -%}
-
-    {%- else -%}
-      {%- assign _faq_html = _faq_mf | metafield_tag | default: '' -%}
-      {%- if _faq_html == '' -%}{%- assign _faq_html = _faq_mf.value | default: '' -%}{%- endif -%}
-      {%- if _faq_html != '' -%}
-        {%- assign _src = _faq_html
-          | replace: '\r', ' '
-          | replace: '\n', ' '
-          | replace: '<br>', ' '
-          | replace: '<br/>', ' '
-          | replace: '<br />', ' '
-          | replace: '  ', ' ' | replace: '  ', ' '
-        -%}
-        {%- assign _parts2 = _src | split: '</p>' -%}
-        {%- assign _q = '' -%}
-        {%- assign _a = '' -%}
-
-        {%- for chunk in _parts2 -%}
-          {%- assign _html = chunk | strip -%}
-          {%- if _html == '' -%}{%- continue -%}{%- endif -%}
-
-          {%- assign _inner = _html -%}
-          {%- if _inner contains '<p' -%}
-            {%- assign _segs = _inner | split: '>' -%}
-            {%- assign _inner = '' -%}
-            {%- for s in _segs -%}
-              {%- if forloop.index0 == 0 -%}{%- continue -%}{%- endif -%}
-              {%- if _inner == '' -%}{%- assign _inner = s -%}{%- else -%}{%- assign _inner = _inner | append: '>' | append: s -%}{%- endif -%}
-            {%- endfor -%}
-            {%- assign _inner = _inner | strip -%}
-          {%- endif -%}
-
-          {%- assign _text = _inner | strip_html | strip | strip_newlines -%}
-          {%- assign _text = _text | replace: '  ', ' ' | replace: '  ', ' ' -%}
-          {%- if _text == '' -%}{%- continue -%}{%- endif -%}
-
-          {%- assign _len = _text | size -%}
-          {%- assign _last_index = _len | minus: 1 -%}
-          {%- assign _first_char = _text | slice: 0, 1 -%}
-          {%- assign _last_char  = _text | slice: _last_index, 1 -%}
-
-          {%- assign _is_q = false -%}
-          {%- if _first_char == '¿' or _last_char == '?' -%}
-            {%- if _len <= 220 -%}{%- assign _is_q = true -%}{%- endif -%}
-          {%- endif -%}
-
-          {%- if _is_q -%}
-            {%- if _q != '' and _a != '' and _a != _q -%}
-              {%- if _faq_items != '' -%}{%- assign _faq_items = _faq_items | append: ',' -%}{%- endif -%}
-              {%- capture _row -%}
-{ "@type":"Question","name": {{ _q | json }},"acceptedAnswer": { "@type":"Answer","text": {{ _a | json }} } }
-              {%- endcapture -%}
-              {%- assign _faq_items = _faq_items | append: _row -%}
-              {%- assign _faq_count = _faq_count | plus: 1 -%}
-            {%- endif -%}
-            {%- assign _q = _text -%}
-            {%- if _last_char != '?' -%}{%- assign _q = _q | append: '?' -%}{%- endif -%}
-            {%- assign _a = '' -%}
-          {%- else -%}
-            {%- if _q != '' -%}
-              {%- if _a != '' -%}{%- assign _a = _a | append: ' ' -%}{%- endif -%}
-              {%- assign _a = _a | append: _text -%}
-            {%- endif -%}
-          {%- endif -%}
-        {%- endfor -%}
-
-        {%- if _q != '' and _a != '' and _a != _q -%}
-          {%- if _faq_items != '' -%}{%- assign _faq_items = _faq_items | append: ',' -%}{%- endif -%}
-          {%- capture _row_last -%}
-{ "@type":"Question","name": {{ _q | json }},"acceptedAnswer": { "@type":"Answer","text": {{ _a | json }} } }
-          {%- endcapture -%}
-          {%- assign _faq_items = _faq_items | append: _row_last -%}
-          {%- assign _faq_count = _faq_count | plus: 1 -%}
-        {%- endif -%}
-      {%- endif -%}
-    {%- endif -%}
+  {%- if _su_open != '' -%}
+  ,{ "@type":"OpeningHoursSpecification",
+    "dayOfWeek":"Sunday",
+    "opens":"{{ _su_open }}","closes":"{{ _su_open | split: ':' | first }}:{{ _su_open | split: ':' | last }}" }
   {%- endif -%}
+]
+  {%- endcapture -%}
+  {%- assign _oh_json = _oh -%}
+{%- endif -%}
 
-  {%- if _faq_count >= 2 and _faq_items != '' -%}
-<script type="application/ld+json" data-sae="1">
+{%- if block.settings.lb_enable -%}
+<script type="application/ld+json" data-sae="lb">
 {
   "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [ {{ _faq_items }} ]
-}
-</script>
-  {%- endif -%}
-{%- endif -%}
-
-{%- comment -%} ====== PRODUCT (PDP) ====== {%- endcomment -%}
-{%- if request.page_type == 'product' and product -%}
-  {%- assign v = product.selected_or_first_available_variant -%}
-  {%- assign _first_collection = product.collections | first -%}
-  {%- assign _gcat = product.type -%}
-
-  {%- assign _mpn = product.metafields.custom.mpn | default: v.sku -%}
-
-  {%- assign _gtin_prop = '' -%}
-  {%- assign _gtin_val = '' -%}
-  {%- if v.barcode and v.barcode != '' -%}
-    {%- assign _bc = v.barcode | strip -%}
-    {%- assign _bcl = _bc | size -%}
-    {%- if _bcl == 8 -%}{%- assign _gtin_prop = 'gtin8'  -%}{%- assign _gtin_val = _bc -%}
-    {%- elsif _bcl == 12 -%}{%- assign _gtin_prop = 'gtin12' -%}{%- assign _gtin_val = _bc -%}
-    {%- elsif _bcl == 13 -%}{%- assign _gtin_prop = 'gtin13' -%}{%- assign _gtin_val = _bc -%}
-    {%- elsif _bcl == 14 -%}{%- assign _gtin_prop = 'gtin14' -%}{%- assign _gtin_val = _bc -%}
-    {%- endif -%}
-  {%- endif -%}
-
-  {%- assign _addprops = '' -%}
-  {%- if product.metafields.custom.color -%}
-    {%- capture _ap -%}{"@type":"PropertyValue","name":"Color","value":{{ product.metafields.custom.color }}}{%- endcapture -%}
-    {%- assign _addprops = _addprops | append: '||' | append: _ap -%}
-  {%- endif -%}
-  {%- if product.metafields.custom.material -%}
-    {%- capture _ap -%}{"@type":"PropertyValue","name":"Material","value":{{ product.metafields.custom.material }}}{%- endcapture -%}
-    {%- assign _addprops = _addprops | append: '||' | append: _ap -%}
-  {%- endif -%}
-  {%- if product.metafields.custom.pattern -%}
-    {%- capture _ap -%}{"@type":"PropertyValue","name":"Patrón","value":{{ product.metafields.custom.pattern }}}{%- endcapture -%}
-    {%- assign _addprops = _addprops | append: '||' | append: _ap -%}
-  {%- endif -%}
-  {%- if product.metafields.custom.dimensions_text -%}
-    {%- capture _ap -%}{"@type":"PropertyValue","name":"Dimensiones","value":{{ product.metafields.custom.dimensions_text }}}{%- endcapture -%}
-    {%- assign _addprops = _addprops | append: '||' | append: _ap -%}
-  {%- endif -%}
-  {%- if product.metafields.custom.weight_value and product.metafields.custom.weight_unit -%}
-    {%- assign _wtxt = product.metafields.custom.weight_value | append: ' ' | append: product.metafields.custom.weight_unit -%}
-    {%- capture _ap -%}{"@type":"PropertyValue","name":"Peso","value":{{ _wtxt | json }}}{%- endcapture -%}
-    {%- assign _addprops = _addprops | append: '||' | append: _ap -%}
-  {%- endif -%}
-
-  {%- assign _hd = block.settings.handling_days | default: '0-1' | strip -%}
-  {%- assign _hd_min = _hd | split: '-' | first | strip | default: '0' -%}
-  {%- assign _hd_max = _hd | split: '-' | last  | strip | default: '1' -%}
-  {%- assign _td = block.settings.shipping_days | default: '2-3' | strip -%}
-  {%- assign _td_min = _td | split: '-' | first | strip | default: '2' -%}
-  {%- assign _td_max = _td | split: '-' | last  | strip | default: '3' -%}
-
-  {%- assign _price_until = 'now' | date: '%s' | plus: 31536000 | date: '%Y-%m-%d' -%}
-
-<script type="application/ld+json" data-sae="1">
-{
-  "@context": "https://schema.org",
-  "@type": "Product",
-  "@id": {{ shop.url | append: product.url | append: "#product" | json | replace: '\/','/' }},
-  "mainEntityOfPage": { "@type": "WebPage", "@id": {{ shop.url | append: product.url | json | replace: '\/','/' }} },
-  "url": {{ shop.url | append: product.url | json | replace: '\/','/' }},
-  "name": {{ product.title | strip_html | json }},
-  "description": {{ product.description | strip_html | truncate: 500 | json }},{% if _first_collection %}
-  "category": {{ _first_collection.title | json }},{% elsif _gcat %}
-  "category": {{ _gcat | json }},{% endif %}
-  "brand": { "@type":"Brand", "name": {{ product.vendor | default: shop.name | json }} },{% if _mpn %}
-  "mpn": {{ _mpn | json }},{% endif %}{% if _gtin_prop != '' %}
-  "{{ _gtin_prop }}": {{ _gtin_val | json }},{% endif %}{% if product.images != blank %}
-  "image": [
-    {%- for img in product.images limit: 8 -%}
-      {{ img | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }}{%- unless forloop.last -%},{%- endunless -%}
-    {%- endfor -%}
-  ],{% endif %}{% if _addprops != '' %}
-  "additionalProperty": [ {{ _addprops | remove_first: '||' | replace: '||', ',' }} ],{% endif %}
-
-  {%- if product.variants.size > 1 -%}
-  "offers": {
-    "@type": "AggregateOffer",
-    "priceCurrency": "{{ cart.currency.iso_code }}",
-    "lowPrice": "{{ product.price_min | divided_by: 100.00 }}",
-    "highPrice": "{{ product.price_max | divided_by: 100.00 }}",
-    "offerCount": "{{ product.variants.size }}",
-    "offers": [
-      {%- for ov in product.variants -%}
-      {
-        "@type": "Offer",
-        "url": {{ shop.url | append: product.url | append: "?variant=" | append: ov.id | json | replace: '\/','/' }},{% if ov.sku != blank %}
-        "sku": {{ ov.sku | json }},{% endif %}{% if ov.barcode != blank %}
-        {%- assign _bc2 = ov.barcode | strip -%}{%- assign _bcl2 = _bc2 | size -%}
-        {%- if _bcl2 == 8 -%}"gtin8": {{ _bc2 | json }},{%- elsif _bcl2 == 12 -%}"gtin12": {{ _bc2 | json }},{%- elsif _bcl2 == 13 -%}"gtin13": {{ _bc2 | json }},{%- elsif _bcl2 == 14 -%}"gtin14": {{ _bc2 | json }},{%- endif -%}{% endif %}
-        "price": "{{ ov.price | divided_by: 100.00 }}",
-        "priceValidUntil": "{{ _price_until }}",
-        "availability": "https://schema.org/{% if ov.available %}InStock{% else %}OutOfStock{% endif %}",
-        "itemCondition": "https://schema.org/NewCondition",
-        "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
-        "shippingDetails": [{
-          "@type":"OfferShippingDetails",
-          "shippingDestination": [
-            {%- assign _codes = block.settings.shipping_countries | default: 'ES,PT' | split: ',' -%}
-            {%- assign _first = true -%}
-            {%- for c in _codes -%}
-              {%- assign _cc = c | strip | upcase -%}
-              {%- if _cc != '' -%}{% unless _first %},{% endunless %}
-{ "@type":"DefinedRegion", "addressCountry": {{ _cc | json }} }
-                {%- assign _first = false -%}
-              {%- endif -%}
-            {%- endfor -%}
-          ],
-          "deliveryTime": {
-            "@type":"ShippingDeliveryTime",
-            "handlingTime": { "@type":"QuantitativeValue", "minValue": {{ _hd_min }}, "maxValue": {{ _hd_max }}, "unitCode": "DAY" },
-            "transitTime":  { "@type":"QuantitativeValue", "minValue": {{ _td_min }}, "maxValue": {{ _td_max }}, "unitCode": "DAY" }
-          }{% if block.settings.include_shipping_rate and block.settings.shipping_rate_value and block.settings.shipping_rate_value != '' %},
-          "shippingRate": { "@type":"MonetaryAmount", "value": {{ block.settings.shipping_rate_value | replace: ',', '.' }}, "currency": "{{ cart.currency.iso_code }}" }{% endif %}
-        }]
-      }{%- unless forloop.last -%},{%- endunless -%}
-      {%- endfor -%}
-    ],
-    "hasMerchantReturnPolicy": {
-      "@type":"MerchantReturnPolicy",
-      "returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow",
-      "merchantReturnDays": {{ block.settings.returns_days | default: 30 }},
-      "returnMethod":"https://schema.org/ReturnByMail",
-      "returnFees":"https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"
-    }
-  }
-  {%- else -%}
-  "offers": {
-    "@type": "Offer",
-    "url": {{ shop.url | append: product.url | json | replace: '\/','/' }},{% if v.sku != blank %}
-    "sku": {{ v.sku | json }},{% endif %}{% if _gtin_prop != '' %}
-    "{{ _gtin_prop }}": {{ _gtin_val | json }},{% endif %}
-    "priceCurrency": "{{ cart.currency.iso_code }}",
-    "price": "{{ v.price | divided_by: 100.00 }}",
-    "priceValidUntil": "{{ _price_until }}",
-    "availability": "https://schema.org/{% if v.available %}InStock{% else %}OutOfStock{% endif %}",
-    "itemCondition": "https://schema.org/NewCondition",
-    "seller": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
-    "shippingDetails": [{
-      "@type":"OfferShippingDetails",
-      "shippingDestination": [
-        {%- assign _codes = block.settings.shipping_countries | default: 'ES,PT' | split: ',' -%}
-        {%- assign _first = true -%}
-        {%- for c in _codes -%}
-          {%- assign _cc = c | strip | upcase -%}
-          {%- if _cc != '' -%}{% unless _first %},{% endunless %}
-{ "@type":"DefinedRegion", "addressCountry": {{ _cc | json }} }
-            {%- assign _first = false -%}
-          {%- endif -%}
-        {%- endfor -%}
-      ],
-      "deliveryTime": {
-        "@type":"ShippingDeliveryTime",
-        "handlingTime": { "@type":"QuantitativeValue", "minValue": {{ _hd_min }}, "maxValue": {{ _hd_max }}, "unitCode": "DAY" },
-        "transitTime":  { "@type":"QuantitativeValue", "minValue": {{ _td_min }}, "maxValue": {{ _td_max }}, "unitCode": "DAY" }
-      }{% if block.settings.include_shipping_rate and block.settings.shipping_rate_value and block.settings.shipping_rate_value != '' %},
-      "shippingRate": { "@type":"MonetaryAmount", "value": {{ block.settings.shipping_rate_value | replace: ',', '.' }}, "currency": "{{ cart.currency.iso_code }}" }{% endif %}
-    }],
-    "hasMerchantReturnPolicy": {
-      "@type":"MerchantReturnPolicy",
-      "returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow",
-      "merchantReturnDays": {{ block.settings.returns_days | default: 30 }},
-      "returnMethod":"https://schema.org/ReturnByMail",
-      "returnFees":"https://schema.org/{% if block.settings.free_returns %}FreeReturn{% else %}ReturnShippingFees{% endif %}"
-    }
-  }
-  {%- endif -%}
-
-  {%- if product.metafields.reviews and product.metafields.reviews.rating and product.metafields.reviews.rating.value and product.metafields.reviews.rating_count and product.metafields.reviews.rating_count != 0 -%}
-  , "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": {{ product.metafields.reviews.rating.value }},
-      "reviewCount": {{ product.metafields.reviews.rating_count }},
-      "bestRating": "5",
-      "worstRating": "1"
-    }
-  {%- endif -%}
+  "@type": {{ block.settings.lb_type | default: "HardwareStore" | json }},
+  "@id": {{ LB_ID | json | replace: '\/','/' }},
+  "name": {{ block.settings.lb_name | default: shop.name | json }},
+  "url": {{ shop.url | json | replace: '\/','/' }},
+  "isPartOf": { "@id": {{ ORG_ID | json | replace: '\/','/' }} }{% if block.settings.lb_logo %}
+ , "logo": {{ LOGO600  | json | replace: '\/','/' }}
+ , "image": {{ LOGO1200 | json | replace: '\/','/' }}{% endif %}{% if block.settings.lb_price_range %}
+ , "priceRange": {{ block.settings.lb_price_range | json }}{% endif %}{% if _sameas_items != '' %}
+ , "sameAs": [ {{ _sameas_items }} ]{% endif %}{% if _areas_items != '' %}
+ , "areaServed": [ {{ _areas_items }} ]{% endif %}{% if block.settings.lb_payment_methods %}
+ , "paymentAccepted": {{ block.settings.lb_payment_methods | strip | replace: '\n', ', ' | replace: '  ', ' ' | json }}{% endif %}{% if block.settings.lb_currencies_accepted %}
+ , "currenciesAccepted": {{ block.settings.lb_currencies_accepted | upcase | json }}{% endif %}{% if block.settings.lb_phone %}
+ , "telephone": {{ block.settings.lb_phone | json }}{% endif %}{% if public_email %}
+ , "email": {{ public_email | json }}{% endif %}
+ , "address": {
+    "@type":"PostalAddress"{% if block.settings.lb_address_street %},
+    "streetAddress": {{ block.settings.lb_address_street | json }}{% endif %}{% if block.settings.lb_address_city %},
+    "addressLocality": {{ block.settings.lb_address_city | json }}{% endif %}{% if block.settings.lb_address_region %},
+    "addressRegion": {{ block.settings.lb_address_region | json }}{% endif %}{% if block.settings.lb_address_postal %},
+    "postalCode": {{ block.settings.lb_address_postal | json }}{% endif %}{% if block.settings.lb_address_country %},
+    "addressCountry": {{ block.settings.lb_address_country | upcase | json }}{% endif %}
+  }{% if _geo_lat != '' and _geo_lng != '' %}
+ , "geo": { "@type":"GeoCoordinates","latitude": {{ _geo_lat }},"longitude": {{ _geo_lng }} }{% endif %}{% if block.settings.lb_maps_url %}
+ , "hasMap": {{ block.settings.lb_maps_url | json | replace: '\/','/' }}{% endif %}{% if _oh_json != '' %}
+ , "openingHoursSpecification": {{ _oh_json }}{% endif %}
 }
 </script>
 {%- endif -%}
-
-{%- comment -%} ====== BlogPosting + HowTo (artículos) ====== {%- endcomment -%}
-{%- if request.page_type == 'article' and article -%}
-  <script type="application/ld+json" data-sae="1">
-  {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "@id": {{ shop.url | append: article.url | append: "#article" | json | replace: '\/','/' }},
-    "mainEntityOfPage": { "@type": "WebPage", "@id": {{ shop.url | append: article.url | json | replace: '\/','/' }} },
-    "headline": {{ article.title | strip_html | truncate: 110 | json }},
-    "description": {{ article.excerpt_or_content | strip_html | truncate: 300 | json }},{% if article.image %}
-    "image": {
-      "@type": "ImageObject",
-      "url": {{ article.image | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }},
-      "width": {{ article.image.width }},
-      "height": {{ article.image.height }}
-    },{% endif %}
-    "datePublished": "{{ article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' }}",
-    "dateModified": "{{ article.updated_at | default: article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' }}",
-    "author": { "@type": "Person", "name": {{ article.author | json }}, "url": {{ shop.url | json | replace: '\/','/' }} },
-    "publisher": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
-    "inLanguage": {{ _lang_out | json }},
-    "isAccessibleForFree": true,
-    "wordCount": {{ article.content | strip_html | strip_newlines | split: ' ' | size }},
-    "articleSection": {{ blog.title | json }}
-  }
-  </script>
-
-  {%- assign _norm = article.content
-    | replace: '<H2', '<h2' | replace: '</H2', '</h2'
-    | replace: '<H3', '<h3' | replace: '</H3', '</h3'
-    | replace: '<h3', '<h2' | replace: '</h3', '</h2'
-  -%}
-  {%- assign _parts = _norm | split: '<h2' -%}
-  {%- assign _steps_json = '' -%}
-  {%- assign _steps_count = 0 -%}
-
-  {%- for p in _parts -%}
-    {%- if forloop.index0 == 0 -%}{% continue %}{% endif -%}
-    {%- assign _split_close = p | split: '</h2>' -%}
-    {%- assign _title_block = _split_close[0] | default: '' -%}
-    {%- assign _body_block  = _split_close[1] | default: '' -%}
-
-    {%- assign _segs = _title_block | split: '>' -%}
-    {%- assign _title_html = '' -%}
-    {%- for s in _segs -%}
-      {%- if forloop.index0 == 0 -%}{% continue %}{% endif -%}
-      {%- if _title_html == '' -%}{%- assign _title_html = s -%}{%- else -%}{%- assign _title_html = _title_html | append: '>' | append: s -%}{%- endif -%}
-    {%- endfor -%}
-
-    {%- assign _step_title = _title_html | strip_html | strip -%}
-    {%- assign _step_text  = _body_block | split: '<h2' | first | strip | strip_html | strip_newlines -%}
-
-    {%- if _step_title != '' and _step_text != '' -%}
-      {%- capture _one_step -%}
-{ "@type":"HowToStep","name": {{ _step_title | json }},"text": {{ _step_text | truncate: 700 | json }} }
-      {%- endcapture -%}
-      {%- if _steps_json != '' -%}{%- assign _steps_json = _steps_json | append: ',' -%}{%- endif -%}
-      {%- assign _steps_json = _steps_json | append: _one_step -%}
-      {%- assign _steps_count = _steps_count | plus: 1 -%}
-    {%- endif -%}
-  {%- endfor -%}
-
-  {%- if _steps_count >= 2 -%}
-<script type="application/ld+json" data-sae="1">
-{
-  "@context": "https://schema.org",
-  "@type": "HowTo",
-  "@id": {{ shop.url | append: article.url | append: "#howto" | json | replace: '\/','/' }},
-  "mainEntityOfPage": { "@type":"WebPage", "@id": {{ shop.url | append: article.url | json | replace: '\/','/' }} },
-  "name": {{ article.title | strip_html | json }},
-  "description": {{ article.excerpt | default: article.content | strip_html | truncate: 300 | json }},
-  "inLanguage": {{ _lang_out | json }},{% if article.image %}
-  "image": { "@type":"ImageObject", "url": {{ article.image | image_url: width: 1200 | prepend: "https:" | json | replace: '\/','/' }} },{% endif %}
-  "datePublished": "{{ article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' }}",
-  "dateModified": "{{ article.updated_at | default: article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' }}",
-  "author": { "@type":"Person", "name": {{ article.author | json }}, "url": {{ shop.url | json | replace: '\/','/' }} },
-  "publisher": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} },
-  "step": [ {{ _steps_json }} ]
-}
-</script>
-  {%- endif -%}
-{%- endif -%}
-
-{%- comment -%} ====== ContactPage ====== {%- endcomment -%}
-{%- if template contains 'contact' or request.path contains '/pages/contact' -%}
-<script type="application/ld+json" data-sae="1">
-{
-  "@context":"https://schema.org",
-  "@type": ["WebPage","ContactPage"],
-  "@id": {{ shop.url | append: request.path | append: "#contact" | json | replace: '\/','/' }},
-  "url": {{ shop.url | append: request.path | json | replace: '\/','/' }},
-  "name": {{ page.title | default: 'Contacto' | json }},
-  "description": {{ page.content | strip_html | truncate: 300 | json }},
-  "inLanguage": {{ _lang_out | json }},
-  "isPartOf": { "@type":"WebSite", "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }} },
-  "about": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
-}
-</script>
-{%- endif -%}
-
-{%- comment -%} ====== AboutPage ====== {%- endcomment -%}
-{%- if template contains 'about' or request.path contains '/pages/acerca' or request.path contains '/pages/sobre-nosotros' or request.path contains '/pages/about' -%}
-<script type="application/ld+json" data-sae="1">
-{
-  "@context":"https://schema.org",
-  "@type": ["WebPage","AboutPage"],
-  "@id": {{ shop.url | append: request.path | append: "#about" | json | replace: '\/','/' }},
-  "url": {{ shop.url | append: request.path | json | replace: '\/','/' }},
-  "name": {{ page.title | default: 'Sobre nosotros' | json }},
-  "description": {{ page.content | strip_html | truncate: 300 | json }},
-  "inLanguage": {{ _lang_out | json }},
-  "isPartOf": { "@type":"WebSite", "@id": {{ shop.url | append: "#website" | json | replace: '\/','/' }} },
-  "about": { "@id": {{ shop.url | append: "#org" | json | replace: '\/','/' }} }
-}
-</script>
-{%- endif -%}
-
-{%- comment -%} ====== SUPRESOR v2 (elimina JSON-LD del tema) ====== {%- endcomment -%}
-{%- if block.settings.suppress_theme_jsonld -%}
-<script>
-(function(){
-  var killTypes = /"@type"\s*:\s*(?:\[\s*"(?:WebPage|CollectionPage|Product|Organization|WebSite|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList|LocalBusiness|Store|HardwareStore)".*?\]|"(?:Product|Organization|WebSite|BreadcrumbList|CollectionPage|WebPage|FAQPage|BlogPosting|HowTo|ContactPage|AboutPage|ItemList|LocalBusiness|Store|HardwareStore)")(?!\w)/i;
-  function isMine(s){ return s.hasAttribute('data-sae'); }
-  function clean(){
-    document.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){
-      if (isMine(s)) return;
-      var t = (s.textContent||'').trim();
-      if (!t) { s.remove(); return; }
-      if (killTypes.test(t)) s.remove();
-    });
-  }
-  clean();
-  document.addEventListener('DOMContentLoaded', clean);
-  setTimeout(clean, 400);
-  setTimeout(clean, 1200);
-  setTimeout(clean, 3000);
-  var obs = new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes && m.addedNodes.forEach(function(n){
-        if (n.nodeType !== 1) return;
-        if (n.matches && n.matches('script[type="application/ld+json"]') && !isMine(n)) {
-          var t = (n.textContent||'').trim();
-          if (killTypes.test(t)) n.remove();
-        }
-        if (n.querySelectorAll){
-          n.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){
-            if (isMine(s)) return;
-            var t = (s.textContent||'').trim();
-            if (killTypes.test(t)) s.remove();
-          });
-        }
-      });
-    });
-  });
-  obs.observe(document.documentElement, {subtree:true, childList:true});
-})();
-</script>
-{%- endif -%}
-
-
-{%- comment -%} === SAE: Embed + Detector por JS (sin usar request.params) === {%- endcomment -%}
-
-<!-- Tu inyección del JSON-LD -->
-<script
-  src="https://schema-advanced-app.vercel.app/public/embed?shop={{ shop.permanent_domain }}&v=2"
-  defer>
-</script>
-{%- comment -%} SAE: Detector (sin depender de request.params y sin beacon) {%- endcomment -%}
-<script>
-(function () {
-  try {
-    // solo corre con ?sae_ping=1
-    var qs = new URLSearchParams(location.search);
-    if (qs.get('sae_ping') !== '1') return;
-
-    function hasSAE() {
-      return !!document.querySelector('script[type="application/ld+json"][data-sae="1"]');
-    }
-
-    function send(ok) {
-      try {
-        var target = window.opener || window.parent; // pestaña o iframe
-        if (target && target.postMessage) {
-          target.postMessage({ source:'schema-advanced', type:'sae-status', ok: !!ok, path: location.pathname }, '*');
-        }
-      } catch (e) {}
-    }
-
-    if (document.readyState !== 'loading' && hasSAE()) return send(true);
-
-    var deadline = Date.now() + 15000; // 15s por si inyectas tarde
-    var obs = new MutationObserver(function () {
-      var ok = hasSAE();
-      if (ok || Date.now() > deadline) { try{obs.disconnect();}catch(_){ } ; send(ok); }
-    });
-
-    function start() {
-      try { obs.observe(document.documentElement, { childList:true, subtree:true }); }
-      catch(_) { send(hasSAE()); }
-      setTimeout(function(){ try{obs.disconnect();}catch(_){ } ; send(hasSAE()); }, 15200);
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
-    else start();
-  } catch (e) {}
-})();
-</script>
-
-
-
-
-
 
 {% schema %}
 {
-  "name": "t:name",
+  "name": "SAE LocalBusiness",
   "target": "head",
   "settings": [
-    { "type": "select", "id": "language_mode",
-      "label": "t:settings.language_mode.label",
-      "info":  "t:settings.language_mode.info",
+    { "type": "checkbox", "id": "lb_enable",
+      "label": "t:lb.settings.lb_enable.label",
+      "info":  "t:lb.settings.lb_enable.info",
+      "default": true
+    },
+    { "type": "select", "id": "lb_type",
+      "label": "t:lb.settings.lb_type.label",
       "options": [
-        { "value": "auto", "label": "t:settings.language_mode.options.auto" },
-        { "value": "es",   "label": "t:settings.language_mode.options.es" },
-        { "value": "en",   "label": "t:settings.language_mode.options.en" },
-        { "value": "pt",   "label": "t:settings.language_mode.options.pt" }
-      ],
-      "default": "auto"
-    },
-
-    { "type": "image_picker", "id": "org_logo",
-      "label": "t:settings.org_logo.label",
-      "info":  "t:settings.org_logo.info"
-    },
-    { "type": "text", "id": "org_phone",
-      "label": "t:settings.org_phone.label",
-      "info":  "t:settings.org_phone.info"
-    },
-    { "type": "text", "id": "org_email",
-      "label": "t:settings.org_email.label",
-      "info":  "t:settings.org_email.info"
-    },
-    { "type": "textarea", "id": "org_sameas",
-      "label": "t:settings.org_sameas.label",
-      "info":  "t:settings.org_sameas.info"
-    },
-
-    { "type": "text", "id": "address_street",
-      "label": "t:settings.address_street.label",
-      "info":  "t:settings.address_street.info"
-    },
-    { "type": "text", "id": "address_city",
-      "label": "t:settings.address_city.label",
-      "info":  "t:settings.address_city.info"
-    },
-    { "type": "text", "id": "address_postal",
-      "label": "t:settings.address_postal.label",
-      "info":  "t:settings.address_postal.info"
-    },
-    { "type": "text", "id": "address_country",
-      "label": "t:settings.address_country.label",
-      "info":  "t:settings.address_country.info",
-      "default": "ES"
-    },
-
-    { "type": "range", "id": "returns_days",
-      "label": "t:settings.returns_days.label",
-      "info":  "t:settings.returns_days.info",
-      "min": 0, "max": 90, "step": 1, "default": 30
-    },
-    { "type": "checkbox", "id": "free_returns",
-      "label": "t:settings.free_returns.label",
-      "info":  "t:settings.free_returns.info",
-      "default": true
-    },
-
-    { "type": "text", "id": "shipping_countries",
-      "label": "t:settings.shipping_countries.label",
-      "info":  "t:settings.shipping_countries.info",
-      "default": "ES,PT"
-    },
-    { "type": "text", "id": "shipping_days",
-      "label": "t:settings.shipping_days.label",
-      "info":  "t:settings.shipping_days.info",
-      "default": "2-3"
-    },
-    { "type": "text", "id": "handling_days",
-      "label": "t:settings.handling_days.label",
-      "info":  "t:settings.handling_days.info",
-      "default": "0-1"
-    },
-
-    { "type": "checkbox", "id": "include_shipping_rate",
-      "label": "t:settings.include_shipping_rate.label",
-      "info":  "t:settings.include_shipping_rate.info",
-      "default": false
-    },
-    { "type": "text", "id": "shipping_rate_value",
-      "label": "t:settings.shipping_rate_value.label",
-      "info":  "t:settings.shipping_rate_value.info",
-      "default": "4.00"
-    },
-
-    { "type": "text", "id": "faq_handle",
-      "label": "t:settings.faq_handle.label",
-      "info":  "t:settings.faq_handle.info",
-      "default": "custom.faq"
-    },
-
-    { "type": "checkbox", "id": "emit_breadcrumbs",
-      "label": "Emitir Breadcrumbs simples",
-      "info":  "Activa para insertar un BreadcrumbList Home → Colección → Producto.",
-      "default": true
-    },
-
-    { "type": "checkbox", "id": "suppress_theme_jsonld",
-      "label": "t:settings.suppress_theme_jsonld.label",
-      "info":  "t:settings.suppress_theme_jsonld.info",
-      "default": true
-    },
-
-    { "type": "checkbox", "id": "emit_localbusiness",
-      "label": "Emitir LocalBusiness/Store (solo si hay tienda física)",
-      "default": false
-    },
-    { "type": "select", "id": "localbusiness_type",
-      "label": "Tipo de negocio (específico)",
-      "options": [
-        { "value": "HardwareStore", "label": "HardwareStore (ferretería)" },
-        { "value": "Store", "label": "Store (tienda genérica)" },
-        { "value": "LocalBusiness", "label": "LocalBusiness (genérico)" },
+        { "value": "HardwareStore", "label": "HardwareStore" },
+        { "value": "Store", "label": "Store" },
+        { "value": "LocalBusiness", "label": "LocalBusiness" },
         { "value": "HomeAndConstructionBusiness", "label": "HomeAndConstructionBusiness" }
       ],
       "default": "HardwareStore"
     },
-    { "type": "text", "id": "localbusiness_name",
-      "label": "Nombre del local (opcional)",
-      "info": "Vacío = usa el nombre de la tienda."
+    { "type": "text", "id": "lb_name",
+      "label": "t:lb.settings.lb_name.label",
+      "info":  "t:lb.settings.lb_name.info"
     },
-    { "type": "text", "id": "localbusiness_gbp_url",
-      "label": "URL de Google Business/Maps (opcional)",
-      "info": "Ej.: https://g.page/tu-ficha o la URL de Google Maps del local"
+    { "type": "image_picker", "id": "lb_logo",
+      "label": "t:lb.settings.lb_logo.label",
+      "info":  "t:lb.settings.lb_logo.info"
     },
-    { "type": "text", "id": "localbusiness_geo_coords",
-      "label": "Coordenadas \"lat,lng\" (override)",
-      "info": "Ej.: 38.239,-1.420 — prioriza sobre la URL para geo/hasMap."
+    { "type": "textarea", "id": "lb_sameas",
+      "label": "t:lb.settings.lb_sameas.label",
+      "info":  "t:lb.settings.lb_sameas.info"
     },
-    { "type": "text", "id": "localbusiness_price_range",
-      "label": "priceRange (opcional)",
+    { "type": "text", "id": "lb_phone",
+      "label": "t:lb.settings.lb_phone.label"
+    },
+    { "type": "text", "id": "lb_email",
+      "label": "t:lb.settings.lb_email.label"
+    },
+    { "type": "text", "id": "lb_price_range",
+      "label": "t:lb.settings.lb_price_range.label",
       "default": "€€"
+    },
+
+    { "type": "text", "id": "lb_address_street",
+      "label": "t:lb.settings.lb_address_street.label"
+    },
+    { "type": "text", "id": "lb_address_city",
+      "label": "t:lb.settings.lb_address_city.label"
+    },
+    { "type": "text", "id": "lb_address_region",
+      "label": "t:lb.settings.lb_address_region.label"
+    },
+    { "type": "text", "id": "lb_address_postal",
+      "label": "t:lb.settings.lb_address_postal.label"
+    },
+    { "type": "text", "id": "lb_address_country",
+      "label": "t:lb.settings.lb_address_country.label",
+      "default": "ES"
+    },
+
+    { "type": "text", "id": "lb_geo_coords",
+      "label": "t:lb.settings.lb_geo_coords.label",
+      "info":  "t:lb.settings.lb_geo_coords.info"
+    },
+    { "type": "text", "id": "lb_maps_url",
+      "label": "t:lb.settings.lb_maps_url.label",
+      "info":  "t:lb.settings.lb_maps_url.info"
+    },
+
+    { "type": "text", "id": "lb_area_served",
+      "label": "t:lb.settings.lb_area_served.label",
+      "info":  "t:lb.settings.lb_area_served.info",
+      "default": "ES,PT"
+    },
+    { "type": "textarea", "id": "lb_payment_methods",
+      "label": "t:lb.settings.lb_payment_methods.label",
+      "info":  "t:lb.settings.lb_payment_methods.info"
+    },
+    { "type": "text", "id": "lb_currencies_accepted",
+      "label": "t:lb.settings.lb_currencies_accepted.label",
+      "default": "EUR"
+    },
+
+    { "type": "select", "id": "lb_opening_mode",
+      "label": "t:lb.settings.lb_opening_mode.label",
+      "options": [
+        { "value": "weekly",       "label": "t:lb.settings.lb_opening_mode.options.weekly" },
+        { "value": "24_7",         "label": "t:lb.settings.lb_opening_mode.options.24_7" },
+        { "value": "closed",       "label": "t:lb.settings.lb_opening_mode.options.closed" },
+        { "value": "manual_json",  "label": "t:lb.settings.lb_opening_mode.options.manual_json" }
+      ],
+      "default": "weekly"
+    },
+    { "type": "textarea", "id": "lb_hours_json",
+      "label": "t:lb.settings.lb_hours_json.label",
+      "info":  "t:lb.settings.lb_hours_json.info"
+    },
+    { "type": "text", "id": "lb_hours_weekdays_open",
+      "label": "t:lb.settings.lb_hours_weekdays_open.label",
+      "default": "09:00"
+    },
+    { "type": "text", "id": "lb_hours_weekdays_close",
+      "label": "t:lb.settings.lb_hours_weekdays_close.label",
+      "default": "18:00"
+    },
+    { "type": "text", "id": "lb_hours_sat_open",
+      "label": "t:lb.settings.lb_hours_sat_open.label",
+      "default": "10:00"
+    },
+    { "type": "text", "id": "lb_hours_sat_close",
+      "label": "t:lb.settings.lb_hours_sat_close.label",
+      "default": "14:00"
+    },
+    { "type": "text", "id": "lb_hours_sun_open",
+      "label": "t:lb.settings.lb_hours_sun_open.label",
+      "info":  "t:lb.settings.lb_hours_sun_open.info"
     }
   ]
 }
 {% endschema %}
-
-
-
-
-
-
-
